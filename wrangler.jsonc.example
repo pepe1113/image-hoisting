@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "r2-image-hosting",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-21",
+  "assets": {
+    "directory": "./dist",
+    "run_worker_first": ["/api/*", "/health", "/images/*", "/profile-images/*"]
+  },
+  "r2_buckets": [
+    {
+      "binding": "IMAGES",
+      "bucket_name": "your-r2-bucket-name"
+    }
+  ],
+  "vars": {
+    "PUBLIC_BASE_URL": "https://images.example.com",
+    "CORS_ORIGINS": "http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173",
+    "IMAGE_PROFILES": "[]",
+    "MAX_UPLOAD_BYTES": "10485760"
+  }
+}

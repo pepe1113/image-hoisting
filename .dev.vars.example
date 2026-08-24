@@ -1,0 +1,4 @@
+ADMIN_TOKEN=replace-with-your-generated-value
+PUBLIC_BASE_URL=https://img.example.com
+CORS_ORIGINS=http://localhost:3000,https://www.example.com
+MAX_UPLOAD_BYTES=10485760
