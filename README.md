@@ -1,4 +1,6 @@
 
+[English](README.md) | [繁體中文](README.zh-TW.md)
+
 # R2 Image Hosting
 
 A small self-hosted image upload tool for blogs, documentation, and Markdown posts.
@@ -19,15 +21,10 @@ A small self-hosted image upload tool for blogs, documentation, and Markdown pos
   - [Run Locally](#run-locally)
   - [Configuration](#configuration)
   - [Profiles](#profiles)
-    - [What Add profile does](#what-add-profile-does)
-    - [Cloudflare setup](#cloudflare-setup)
-    - [Profile fields](#profile-fields)
-    - [Complete example](#complete-example)
   - [API](#api)
   - [Security and Privacy](#security-and-privacy)
   - [Commands](#commands)
-  - [Deploy Your Own Instance](#deploy-your-own-instance)
-  - [Keep a Private Deployment Config](#keep-a-private-deployment-config)
+  - [Deploy](#deploy)
   - [License](#license)
 
 
@@ -35,24 +32,20 @@ Drop or paste an image into the page, optimize it in the browser, upload it to C
 
 ## Features
 
-- **React workspace:** Switch between upload and history from the header navigation without leaving the page.
+- **React & TypeScript:** CLient app is built by React & TypeScript.
 - **Upload:** Drop one file or paste an image with `Command + V` or `Ctrl + V`.
 - **Preview:** Check the image before uploading it.
 - **Processing confirmation:** Compare dimensions, file sizes, resize percentage, and savings before choosing the original or processed image.
 - **Custom processing:** Use the original, 1920px/85%, 1280px/82%, or a custom long edge and WebP quality.
-- **GIF support:** Keep animated GIFs in their original format.
 - **Auto rename:** Enter a display filename or generate a random eight-character name.
 - **Upload result:** Show the uploaded image, Markdown, and image URL after a successful upload.
-- **Quick copy:** Copy Markdown or the image URL with one click.
 - **Profiles:** Switch between R2 buckets and use the in-app setup helper to prepare a new server-side profile without exposing bucket credentials to the browser.
 - **Permanent admin key:** Protect every management API with a deployer-owned Bearer token saved from the key icon.
 - **Themes:** Use the system theme or choose light/dark mode.
 - **Settings transfer:** Export and import safe interface and processing preferences as JSON.
 - **Tags:** Add tags and search images by tag.
 - **Edit:** Change the display filename without changing the image URL.
-- **Views:** Switch between grid and list views.
 - **Delete:** Remove images from the library.
-- **Short URLs:** Create a short 8-character URL for each image.
 
 ## Tech Stack
 
@@ -125,32 +118,10 @@ Existing deployments using the former `AUTH_TOKEN` secret remain compatible, but
 
 Each profile maps to one Cloudflare R2 bucket. Switching profiles keeps uploads, history, search, and deletion separated by bucket.
 
-Examples:
-
-- `Default` → `my-images`
-- `Archive` → `archive-images`
-- `Work` → `work-images`
-
-### What Add profile does
-
-The **Add profile (+)** button generates the configuration needed for `wrangler.jsonc`. It does not create a Cloudflare bucket or change the deployed Worker automatically.
-
-1. Create the bucket and public image URL in Cloudflare.
-2. Select **+** in the app header and complete the profile form.
-3. Select **Copy setup** and merge both generated values into `wrangler.jsonc`.
-4. Run `npm run deploy`.
-5. Refresh the app to load the new profile.
-
-### Cloudflare setup
-
-1. Go to **R2 object storage → Overview → Create bucket** and create the bucket. Keep its exact name for the **R2 bucket name** field.
-2. Open the bucket and go to **Settings → Public access → Custom Domains → Add / Connect Domain**. Use the active domain as the **Public image URL**. A Cloudflare `r2.dev` URL can be used for development.
-
-See the Cloudflare documentation for [creating buckets](https://developers.cloudflare.com/r2/buckets/create-buckets/), [public bucket URLs](https://developers.cloudflare.com/r2/buckets/public-buckets/), and [Worker R2 bindings](https://developers.cloudflare.com/r2/get-started/workers-api/).
-
-### Profile fields
-
-All five fields are required.
+1. Create an R2 bucket and enable its public URL in Cloudflare.
+2. Select **+** in the app and complete the fields below.
+3. Select **Copy setup** and merge the generated values into `wrangler.jsonc`.
+4. Run `npm run deploy`, then refresh the app.
 
 | Field | Required | What to enter | Example |
 | --- | --- | --- | --- |
@@ -160,52 +131,7 @@ All five fields are required.
 | **Worker binding** | Yes | A unique JavaScript variable name used by the Worker. Uppercase letters and underscores are recommended. | `ARCHIVE_IMAGES` |
 | **Public image URL** | Yes | The active URL under **Bucket → Settings → Public access**, without a trailing slash. | `https://archive-img.example.com` |
 
-### Complete example
-
-This example adds `archive-images` while keeping `my-images` as the default bucket:
-
-```jsonc
-{
-  "r2_buckets": [
-    {
-      "binding": "IMAGES",
-      "bucket_name": "my-images"
-    },
-    {
-      "binding": "ARCHIVE_IMAGES",
-      "bucket_name": "archive-images"
-    }
-  ],
-  "vars": {
-    "PUBLIC_BASE_URL": "https://img.example.com",
-    "IMAGE_PROFILES": "[{\"id\":\"archive\",\"label\":\"Archive\",\"binding\":\"ARCHIVE_IMAGES\",\"publicBaseUrl\":\"https://archive-img.example.com\"}]"
-  }
-}
-```
-
-Keep these rules in mind:
-
-- Keep the existing `IMAGES` binding and your chosen default bucket. They belong to the default profile.
-- `ARCHIVE_IMAGES` must match exactly in `r2_buckets[].binding` and `IMAGE_PROFILES[].binding`.
-- `archive-images` must match the bucket name in Cloudflare.
-- `IMAGE_PROFILES` is a JSON array stored as a string. Add future profiles to the same array instead of replacing existing entries.
-- **Copy setup** copies a fragment. Merge it into the existing configuration instead of replacing the entire `wrangler.jsonc` file.
-
-Deploy the updated configuration:
-
-```bash
-npm run deploy
-```
-
-If the profile does not appear after refreshing, check that:
-
-1. `IMAGE_PROFILES` is a valid JSON array string.
-2. The binding names match exactly, including letter case.
-3. `bucket_name` matches the Cloudflare bucket name.
-4. The updated Worker has been deployed.
-5. The custom domain status is **Active**.
-
-For local testing, **Public image URL** can be `http://localhost:8787/profile-images/archive`. Wrangler uses local R2 storage by default, so local uploads do not change the production bucket.
+The binding name and bucket name must match the values in Cloudflare. **Copy setup** creates a fragment, so merge it into the existing configuration instead of replacing the file.
 
 ## API
 
@@ -246,7 +172,7 @@ Every `/api/*` route requires `Authorization: Bearer <ADMIN_TOKEN>`. Public imag
 | `npm run check` | Runs lint, type checking, tests, and the production build |
 | `npm run deploy` | Deploys the Worker to Cloudflare |
 
-## Deploy Your Own Instance
+## Deploy
 
 1. Sign in to Cloudflare and create an R2 bucket:
 
@@ -285,21 +211,7 @@ Every `/api/*` route requires `Authorization: Bearer <ADMIN_TOKEN>`. Public imag
 
 Wrangler only enforces a secret during deployment when it is listed under `secrets.required`. This template leaves that optional validation unset so existing deployments using the former `AUTH_TOKEN` remain compatible. For a new deployment, configure `ADMIN_TOKEN` once; Cloudflare keeps secrets across later `wrangler deploy` operations, so you only need to enter it again when rotating or recreating the secret. If neither token exists, the Worker still deploys but its management API rejects requests with `AUTH_NOT_CONFIGURED`. See Cloudflare's [Secrets documentation](https://developers.cloudflare.com/workers/configuration/secrets/).
 
-## Keep a Private Deployment Config
 
-If you want to deploy your own instance, keep personal resource names outside Git:
-
-```bash
-cp wrangler.jsonc.example wrangler.jsonc
-```
-
-Edit the `wrangler.jsonc` with your Worker name, bucket, public domain, CORS origins, and profile bindings. Then configure and deploy that Worker explicitly:
-
-```bash
-npm run deploy
-```
-
-The public `wrangler.jsonc.example` remains neutral while the ignored `wrangler.jsonc` continues to target your own Cloudflare resources. Use separate Worker names, buckets, public domains, and admin tokens for unrelated deployments.
 
 ## License
 
