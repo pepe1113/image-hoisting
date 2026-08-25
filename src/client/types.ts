@@ -20,6 +20,7 @@ export interface ImageRecord {
 export type Theme = "system" | "light" | "dark";
 export type GalleryView = "grid" | "list";
 export type ResizePreset = "original" | "large" | "medium" | "custom";
+export type WorkspaceTab = "upload" | "history";
 
 export interface ProfilePreferences {
   resizePreset: ResizePreset;
