@@ -68,7 +68,7 @@
 需要 Node.js 22 以上版本，推薦使用 nvm 管理版本
 
 ```bash
-npm install
+pnpm install
 cp .dev.vars.example .dev.vars
 openssl rand -hex 32
 cp wrangler.jsonc.example wrangler.jsonc
@@ -77,7 +77,7 @@ cp wrangler.jsonc.example wrangler.jsonc
 將產生的值填入 `.dev.vars` 的 `ADMIN_TOKEN`，再啟動專案：
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 在瀏覽器開啟 [http://127.0.0.1:5173](http://127.0.0.1:5173)。Vite 會將 API 與圖片請求代理到 `8787` port 的本機 Worker
@@ -89,9 +89,9 @@ npm run dev
 本機設定放在 `.dev.vars`：
 
 ```dotenv
-ADMIN_TOKEN=replace-with-your-generated-value  // API Bearer token
-CORS_ORIGINS=http://localhost:3000,https://www.example.com  // 限制可呼叫來源
-MAX_UPLOAD_BYTES=10485760  // 上傳大小上限
+ADMIN_TOKEN=replace-with-your-generated-value  # API Bearer token
+CORS_ORIGINS=http://localhost:3000,https://www.example.com  # 限制可呼叫來源
+MAX_UPLOAD_BYTES=10485760  # 上傳大小上限
 ```
 
 Profile 名稱、binding 與公開網址統一在 `wrangler.jsonc` 的 `vars.IMAGE_PROFILES` 中管理。
@@ -112,7 +112,7 @@ npx wrangler secret put ADMIN_TOKEN
 2. 在應用程式中選擇 **+**，填寫下列表格欄位。
 3. 複製 **R2 bucket binding**，直接貼到 `wrangler.jsonc` 的 `r2_buckets` 陣列中。
 4. 複製 **Profile entry**，直接貼到 `vars.IMAGE_PROFILES` 陣列中。
-5. 本機測試時重新啟動 Worker；正式環境執行 `npm run deploy`，再重新整理應用程式。
+5. 本機測試時重新啟動 Worker；正式環境執行 `pnpm deploy`，再重新整理應用程式。
 
 | 欄位 | 必填 | 填寫內容 | 範例 |
 | --- | --- | --- | --- |
@@ -154,22 +154,22 @@ npx wrangler secret put ADMIN_TOKEN
 
 | 指令 | 用途 |
 | --- | --- |
-| `npm run dev` | 啟動 Vite 與本機 Worker |
-| `npm run dev:worker` | 只啟動本機 Worker |
-| `npm run build` | 建置 React 正式環境資源 |
-| `npm test` | 執行測試 |
-| `npm run lint` | 檢查程式碼格式與規則 |
-| `npm run typecheck` | 檢查 TypeScript 型別 |
-| `npm run check` | 執行 lint、型別檢查、測試與正式建置 |
-| `npm run deploy` | 部署 Worker 至 Cloudflare |
+| `pnpm dev` | 啟動 Vite 與本機 Worker |
+| `pnpm dev:worker` | 只啟動本機 Worker |
+| `pnpm build` | 建置 React 正式環境資源 |
+| `pnpm test` | 執行測試 |
+| `pnpm lint` | 檢查程式碼格式與規則 |
+| `pnpm typecheck` | 檢查 TypeScript 型別 |
+| `pnpm check` | 執行 lint、型別檢查、測試與正式建置 |
+| `pnpm deploy` | 部署 Worker 至 Cloudflare |
 
 ## Deploy
 
 1. 登入 Cloudflare 並建立 R2 bucket：
 
    ```bash
-   npx wrangler login
-   npx wrangler r2 bucket create my-images
+   pnpm exec wrangler login
+   pnpm exec wrangler r2 bucket create my-images
    ```
 
 2. 如果尚未建立本機部署設定，先複製公開範例：
@@ -192,13 +192,13 @@ npx wrangler secret put ADMIN_TOKEN
 
    ```bash
    openssl rand -hex 32
-   npx wrangler secret put ADMIN_TOKEN
+   pnpm exec wrangler secret put ADMIN_TOKEN
    ```
 
 5. 部署：
 
    ```bash
-   npm run deploy
+   pnpm deploy
    ```
 
 只有在 `secrets.required` 中宣告 secret 時，Wrangler 才會在部署時強制檢查。此範例未啟用該選用驗證，以相容仍使用舊 `AUTH_TOKEN` 的部署。新部署只需設定一次 `ADMIN_TOKEN`；Cloudflare 會在後續 `wrangler deploy` 時保留 secret，只有更換或重新建立時需要再次輸入。若兩種 token 都沒有設定，Worker 仍可部署，但管理 API 會回傳 `AUTH_NOT_CONFIGURED`。詳情請參考 Cloudflare 的 [Secrets 文件](https://developers.cloudflare.com/workers/configuration/secrets/)。

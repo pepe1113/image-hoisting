@@ -32,7 +32,7 @@ Drop or paste an image into the page, optimize it in the browser, upload it to C
 
 ## Features
 
-- **React & TypeScript:** CLient app is built by React & TypeScript.
+- **React & TypeScript:** Client app is built by React & TypeScript.
 - **Upload:** Drop one file or paste an image with `Command + V` or `Ctrl + V`.
 - **Preview:** Check the image before uploading it.
 - **Processing confirmation:** Compare dimensions, file sizes, resize percentage, and savings before choosing the original or processed image.
@@ -70,7 +70,7 @@ The server checks the real file signature instead of trusting the MIME type sent
 Node.js 22 or newer is required.
 
 ```bash
-npm install
+pnpm install
 cp .dev.vars.example .dev.vars
 openssl rand -hex 32
 cp wrangler.jsonc.example wrangler.jsonc
@@ -79,7 +79,7 @@ cp wrangler.jsonc.example wrangler.jsonc
 Replace `ADMIN_TOKEN` in `.dev.vars` with the generated value, then start the app:
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 Open [http://127.0.0.1:5173](http://127.0.0.1:5173) in your browser. Vite proxies API and image requests to the local Worker on port `8787`.
@@ -120,7 +120,7 @@ Each profile maps to one Cloudflare R2 bucket. Switching profiles keeps uploads,
 2. Select **+** in the app and complete the fields below.
 3. Copy **R2 bucket binding** and paste it inside `r2_buckets` in `wrangler.jsonc`.
 4. Copy **Profile entry** and paste it inside `vars.IMAGE_PROFILES`.
-5. Restart the local Worker, or run `npm run deploy` for production, then refresh the app.
+5. Restart the local Worker, or run `pnpm deploy` for production, then refresh the app.
 
 | Field | Required | What to enter | Example |
 | --- | --- | --- | --- |
@@ -162,22 +162,22 @@ Every `/api/*` route requires `Authorization: Bearer <ADMIN_TOKEN>`. Public imag
 
 | Command | What it does |
 | --- | --- |
-| `npm run dev` | Starts Vite and the local Worker |
-| `npm run dev:worker` | Starts only the local Worker |
-| `npm run build` | Builds the React production assets |
-| `npm test` | Runs the tests |
-| `npm run lint` | Checks the code style |
-| `npm run typecheck` | Checks TypeScript types |
-| `npm run check` | Runs lint, type checking, tests, and the production build |
-| `npm run deploy` | Deploys the Worker to Cloudflare |
+| `pnpm dev` | Starts Vite and the local Worker |
+| `pnpm dev:worker` | Starts only the local Worker |
+| `pnpm build` | Builds the React production assets |
+| `pnpm test` | Runs the tests |
+| `pnpm lint` | Checks the code style |
+| `pnpm typecheck` | Checks TypeScript types |
+| `pnpm check` | Runs lint, type checking, tests, and the production build |
+| `pnpm deploy` | Deploys the Worker to Cloudflare |
 
 ## Deploy
 
 1. Sign in to Cloudflare and create an R2 bucket:
 
    ```bash
-   npx wrangler login
-   npx wrangler r2 bucket create my-images
+   pnpm exec wrangler login
+   pnpm exec wrangler r2 bucket create my-images
    ```
 
 2. If you have not created a local deployment configuration yet, copy the public template:
@@ -200,13 +200,13 @@ Every `/api/*` route requires `Authorization: Bearer <ADMIN_TOKEN>`. Public imag
 
    ```bash
    openssl rand -hex 32
-   npx wrangler secret put ADMIN_TOKEN
+   pnpm exec wrangler secret put ADMIN_TOKEN
    ```
 
 5. Deploy:
 
    ```bash
-   npm run deploy
+   pnpm deploy
    ```
 
 Wrangler only enforces a secret during deployment when it is listed under `secrets.required`. This template leaves that optional validation unset so existing deployments using the former `AUTH_TOKEN` remain compatible. For a new deployment, configure `ADMIN_TOKEN` once; Cloudflare keeps secrets across later `wrangler deploy` operations, so you only need to enter it again when rotating or recreating the secret. If neither token exists, the Worker still deploys but its management API rejects requests with `AUTH_NOT_CONFIGURED`. See Cloudflare's [Secrets documentation](https://developers.cloudflare.com/workers/configuration/secrets/).
