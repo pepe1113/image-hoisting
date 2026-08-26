@@ -14,9 +14,15 @@
     }
   ],
   "vars": {
-    "PUBLIC_BASE_URL": "https://images.example.com",
     "CORS_ORIGINS": "http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173",
-    "IMAGE_PROFILES": "[]",
+    "IMAGE_PROFILES": [
+      {
+        "id": "default",
+        "label": "Main images",
+        "binding": "IMAGES",
+        "publicBaseUrl": "https://images.example.com"
+      }
+    ],
     "MAX_UPLOAD_BYTES": "10485760"
   }
 }

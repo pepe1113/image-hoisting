@@ -85,6 +85,14 @@ export function PlusIcon({ className = "header-icon" }: IconProps) {
   );
 }
 
+export function ChevronDownIcon({ className = "header-icon" }: IconProps) {
+  return (
+    <IconFrame className={className}>
+      <path d="m7 10 5 5 5-5" />
+    </IconFrame>
+  );
+}
+
 export function ThemeIcon({
   dark,
   className = "header-icon",

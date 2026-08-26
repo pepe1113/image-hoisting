@@ -180,7 +180,9 @@ describe("React image workspace", () => {
     expect(screen.getByRole("button", { name: "Close navigation menu" }).getAttribute("aria-expanded")).toBe("true");
   });
 
-  it("builds safe deployment values for a new profile", () => {
+  it("copies two directly pasteable deployment values for a new profile", async () => {
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
     renderWithAdminKey();
     fireEvent.click(screen.getByRole("button", { name: "Add profile" }));
     expect(screen.getByRole("dialog", { name: "Add an R2 profile" })).toBeTruthy();
@@ -191,21 +193,71 @@ describe("React image workspace", () => {
     fireEvent.change(screen.getByLabelText("Worker binding"), { target: { value: "ARCHIVE_IMAGES" } });
     fireEvent.change(screen.getByLabelText("Public image URL"), { target: { value: "https://archive.example.com/" } });
 
-    expect(screen.getByText((content) => content.includes('"binding": "ARCHIVE_IMAGES"'))).toBeTruthy();
+    const bucketBinding = `{
+  "binding": "ARCHIVE_IMAGES",
+  "bucket_name": "archive-images"
+},`;
+    const profileEntry = `{
+  "id": "archive",
+  "label": "Archive",
+  "binding": "ARCHIVE_IMAGES",
+  "publicBaseUrl": "https://archive.example.com"
+},`;
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy R2 bucket binding" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(bucketBinding));
+    fireEvent.click(screen.getByRole("button", { name: "Copy profile entry" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(profileEntry));
     expect(screen.queryByText(/secret access key/iu)).toBeNull();
   });
 
   it("changes theme only when the user activates the control", async () => {
     renderWithAdminKey();
-    const profile = await screen.findByLabelText("Active profile");
-    expect(profile).toBeInstanceOf(HTMLSelectElement);
-    if (!(profile instanceof HTMLSelectElement)) throw new Error("Active profile is not a select");
-    expect(profile.disabled).toBe(true);
+    const profile = await screen.findByRole("button", { name: "Active profile: Default" });
+    expect(profile).toHaveProperty("disabled", true);
     expect(profile.title).toBe("No other profiles available");
+    expect(screen.queryByRole("combobox")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Switch to dark mode" }));
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(screen.getByRole("button", { name: "Switch to light mode" })).toBeTruthy();
+  });
+
+  it("switches profiles from a custom menu and highlights the active bucket", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/profiles")) {
+        return Response.json({ data: [
+          { id: "default", label: "Blog images", isDefault: true },
+          { id: "archive", label: "Archive", isDefault: false },
+        ] });
+      }
+      if (url.includes("/api/images")) {
+        return Response.json({ data: [], pagination: { cursor: null, truncated: false } });
+      }
+      return Response.json({ error: { message: "Not found" } }, { status: 404 });
+    }));
+
+    renderWithAdminKey();
+    const trigger = await screen.findByRole("button", { name: "Active profile: Blog images" });
+    fireEvent.click(trigger);
+
+    expect(screen.getByRole("listbox", { name: "Profiles" })).toBeTruthy();
+    expect(
+      screen.getByRole("option", { name: "Blog images" }).querySelector(".profile-option-check"),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("option", { name: "Archive" }).querySelector(".profile-option-check"),
+    ).toBeNull();
+    fireEvent.keyDown(trigger, { key: "Escape" });
+    expect(screen.queryByRole("listbox", { name: "Profiles" })).toBeNull();
+
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("option", { name: "Archive" }));
+
+    expect(screen.queryByRole("listbox", { name: "Profiles" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Active profile: Archive" })).toBeTruthy();
+    expect(screen.getByText("Archive", { selector: "mark.active-profile-name" })).toBeTruthy();
   });
 
   it("selects images and copies their Markdown in one batch", async () => {

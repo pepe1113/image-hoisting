@@ -216,6 +216,7 @@ a:focus-visible {
 }
 
 .profile-switcher {
+  position: relative;
   display: grid;
   min-width: 164px;
   min-height: 46px;
@@ -253,6 +254,7 @@ a:focus-visible {
   display: grid;
   min-width: 0;
   gap: 1px;
+  text-align: left;
 }
 
 .profile-caption {
@@ -264,31 +266,136 @@ a:focus-visible {
   text-transform: uppercase;
 }
 
-.profile-switcher select {
+.profile-trigger {
+  display: grid;
   width: 100%;
   min-width: 0;
-  height: 20px;
-  padding: 0 18px 0 0;
+  min-height: 34px;
+  padding: 0;
+  grid-template-columns: minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 8px;
   overflow: hidden;
   border: 0;
   color: var(--ink);
   background: transparent;
   cursor: pointer;
+}
+
+.profile-value {
+  overflow: hidden;
   font-size: 12px;
   font-weight: 700;
   line-height: 20px;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.profile-switcher select:focus-visible {
+.profile-trigger:focus-visible {
   outline-offset: 2px;
 }
 
-.profile-switcher select:disabled {
-  padding-right: 0;
-  appearance: none;
+.profile-trigger:disabled {
   cursor: not-allowed;
   opacity: 1;
+}
+
+.profile-chevron {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.profile-trigger[aria-expanded="true"] .profile-chevron {
+  transform: rotate(180deg);
+}
+
+.profile-switcher.is-disabled .profile-chevron {
+  display: none;
+}
+
+.profile-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 7px);
+  right: 0;
+  left: 0;
+  display: grid;
+  min-width: 190px;
+  padding: 6px;
+  border: 1px solid var(--hairline);
+  border-radius: 11px;
+  background: var(--canvas);
+  box-shadow: 0 18px 42px rgb(21 15 35 / 16%), 0 3px 10px rgb(21 15 35 / 8%);
+  animation: profile-menu-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: top center;
+}
+
+.profile-menu button {
+  display: grid;
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 7px;
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  text-overflow: ellipsis;
+  transition: background-color 140ms ease, transform 120ms ease;
+  white-space: nowrap;
+}
+
+.profile-option-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-menu button[aria-selected="true"] {
+  background: transparent;
+  box-shadow: none;
+}
+
+.profile-menu button:hover,
+.profile-menu button:focus-visible {
+  background: var(--canvas-soft);
+}
+
+.profile-option-check {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.profile-menu button:active {
+  transform: scale(0.98);
+}
+
+@keyframes profile-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .profile-switcher.is-disabled {
@@ -545,7 +652,8 @@ html[data-theme="system"] .inline-warning {
   gap: 22px 18px;
 }
 
-.settings-field {
+.settings-field,
+.profile-setup-grid .dialog-field {
   display: grid;
   gap: 7px;
   margin: 0;
@@ -556,7 +664,8 @@ html[data-theme="system"] .inline-warning {
 }
 
 .settings-field legend,
-.settings-field > span {
+.settings-field > span,
+.profile-setup-grid .dialog-field > span {
   color: var(--ink);
   font-size: 16px;
   font-weight: 700;
@@ -564,7 +673,8 @@ html[data-theme="system"] .inline-warning {
 }
 
 .settings-field select,
-.settings-field input {
+.settings-field input,
+.profile-setup-grid .dialog-field > input {
   min-height: 48px;
   font-size: 16px;
 }
@@ -785,6 +895,28 @@ html[data-theme="system"] .inline-warning {
   color: var(--body);
   font-size: 16px;
   line-height: 1.65;
+}
+
+.workspace-heading .active-profile-name {
+  margin-left: 2px;
+  padding: 1px 7px 2px;
+  border-radius: 6px;
+  color: var(--accent-ink);
+  background: var(--lime);
+  font-weight: 700;
+  transform: none;
+  animation: active-profile-in 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes active-profile-in {
+  from {
+    opacity: 0.35;
+    transform: translateY(4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .upload-section,
@@ -1869,47 +2001,78 @@ html[data-theme="dark"] .drop-copy small {
 .profile-setup-note {
   margin: 0;
   color: var(--body);
-  font-size: 13px;
-  line-height: 1.55;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .profile-setup-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0 14px;
+  gap: 22px 18px;
+  margin-top: 22px;
 }
 
 .profile-setup-wide {
   grid-column: 1 / -1;
 }
 
+.profile-setup-values {
+  margin-top: 24px;
+  display: grid;
+  gap: 16px;
+}
+
 .profile-setup-preview {
-  margin-top: 18px;
-  padding: 14px;
+  padding: 18px;
   border: 1px solid var(--hairline);
   border-radius: 10px;
   background: var(--canvas-soft);
 }
 
-.profile-setup-preview > strong {
+.profile-setup-preview-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.profile-setup-preview-heading strong,
+.profile-setup-preview-heading small {
   display: block;
-  margin-bottom: 9px;
+}
+
+.profile-setup-preview-heading strong {
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.profile-setup-preview-heading small {
+  margin-top: 4px;
+  color: var(--body);
   font-size: 12px;
+  line-height: 1.4;
+}
+
+.profile-setup-copy.icon-button {
+  width: 34px;
+  min-height: 34px;
+  padding: 7px;
 }
 
 .profile-setup-preview pre {
-  max-height: 210px;
+  max-height: 160px;
   margin: 0;
   overflow: auto;
   color: var(--violet-deep);
   font-family: var(--font-mono);
-  font-size: 10px;
-  line-height: 1.55;
+  font-size: 12px;
+  line-height: 1.65;
   white-space: pre-wrap;
 }
 
 .profile-setup-note {
-  margin-top: 12px;
+  margin-top: 16px;
 }
 
 @media (max-width: 640px) {

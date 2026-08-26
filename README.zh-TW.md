@@ -2,7 +2,7 @@
 
 # R2 Image Hosting
 
-一個適合部落格、技術文件與 Markdown 文章使用的小型自架圖片託管工具。
+一個適合部落格、技術文件與 Markdown 文章使用的小型自架圖片託管工具（圖床）
 
 <p>
   <img src="https://img.shields.io/badge/React-19.2.8-20232A?logo=react&logoColor=61DAFB" alt="React 19.2.8" />
@@ -26,24 +26,24 @@
   - [Deploy](#deploy)
   - [License](#license)
 
-將圖片拖曳或貼到頁面，在瀏覽器中最佳化後上傳至 Cloudflare R2，並立即複製 Markdown 或圖片網址。
+可自行 clone 到本機或 deploy 至雲端，將圖片拖曳或貼到頁面，在瀏覽器中提供選項 resize、圖片壓縮、優化成 webp 後上傳至 Cloudflare R2，可複製 Markdown 圖片語法或網址
 
 ## Features
 
 - **React & TypeScript：** 前端由 React & TypeScript 構成
-- **上傳：** 拖曳單一檔案，或使用 `Command + V`／`Ctrl + V` 貼上圖片。
-- **預覽：** 上傳前先確認圖片。
-- **處理確認：** 比較尺寸、檔案大小、縮放比例與節省空間，再選擇原圖或處理後圖片。
-- **自訂處理：** 可使用原圖、1920px／85%、1280px／82%，或自訂長邊與 WebP 品質。
-- **自動命名：** 輸入顯示檔名，或產生八字元隨機名稱。
-- **上傳結果：** 上傳成功後顯示圖片、Markdown 與圖片網址。
-- **Profiles：** 切換不同 R2 bucket，並透過介面產生新的伺服器端 profile 設定。
-- **固定管理金鑰：** 使用部署者管理的 Bearer token 保護所有管理 API。
-- **主題：** 跟隨系統，或選擇亮色／深色模式。
-- **設定轉移：** 將介面與圖片處理偏好匯出或匯入為 JSON。
-- **標籤：** 新增標籤，並依標籤搜尋圖片。
-- **編輯：** 修改顯示檔名，不改變圖片網址。
-- **刪除：** 從圖片庫刪除圖片。
+- **上傳：** 拖曳單一檔案，或使用 `Command + V`／`Ctrl + V` 貼上圖片
+- **預覽：** 上傳前先確認圖片
+- **處理確認：** 比較尺寸、檔案大小、縮放比例與節省空間，再選擇原圖或處理後圖片
+- **自訂處理：** 可使用原圖、1920px／85%、1280px／82%，或自訂長邊與 WebP 品質
+- **自動命名：** 輸入顯示檔名，或產生八字元隨機名稱
+- **上傳結果：** 上傳成功後顯示圖片、Markdown 與圖片網址
+- **Profiles：** 切換不同 R2 bucket，並透過介面產生新的伺服器端 profile 設定
+- **固定管理金鑰：** 使用部署者管理的 Bearer token 保護所有管理 API
+- **主題：** 跟隨系統，或選擇亮色／深色模式
+- **設定轉移：** 將介面與圖片處理偏好匯出或匯入為 JSON
+- **標籤：** 新增標籤，並依標籤搜尋圖片
+- **編輯：** 修改顯示檔名，不改變圖片網址
+- **刪除：** 從圖片庫刪除圖片
 
 ## Tech Stack
 
@@ -55,17 +55,17 @@
 | React、TypeScript、Vite | 瀏覽器介面 |
 | Vitest | 自動化測試 |
 
-瀏覽器端執行依賴為 React 與 ReactDOM；圖片處理使用瀏覽器原生 API。
+瀏覽器端執行依賴為 React 與 ReactDOM；圖片處理使用瀏覽器原生 API
 
 ## Supported Images
 
-支援 JPEG、PNG、GIF、WebP 與 AVIF，預設上傳上限為 10 MiB。
+支援 JPEG、PNG、GIF、WebP 與 AVIF，預設上傳上限為 10 MiB
 
-伺服器會檢查實際檔案特徵，不只信任瀏覽器提供的 MIME type。由於 SVG 可能包含可執行腳本，因此不支援 SVG。
+伺服器會檢查實際檔案特徵，不只信任瀏覽器提供的 MIME type。由於 SVG 可能包含可執行腳本，因此不支援 SVG
 
 ## Run Locally
 
-需要 Node.js 22 以上版本。
+需要 Node.js 22 以上版本，推薦使用 nvm 管理版本
 
 ```bash
 npm install
@@ -80,27 +80,21 @@ cp wrangler.jsonc.example wrangler.jsonc
 npm run dev
 ```
 
-在瀏覽器開啟 [http://127.0.0.1:5173](http://127.0.0.1:5173)。Vite 會將 API 與圖片請求代理到 `8787` port 的本機 Worker。
+在瀏覽器開啟 [http://127.0.0.1:5173](http://127.0.0.1:5173)。Vite 會將 API 與圖片請求代理到 `8787` port 的本機 Worker
 
-開發期間 Wrangler 使用本機 R2 儲存空間，因此本機上傳不會改動正式環境的 bucket。
+開發期間 Wrangler 使用本機 R2 儲存空間，因此本機上傳不會改動正式環境的 bucket
 
 ## Configuration
 
 本機設定放在 `.dev.vars`：
 
 ```dotenv
-ADMIN_TOKEN=replace-with-your-generated-value
-PUBLIC_BASE_URL=https://img.example.com
-CORS_ORIGINS=http://localhost:3000,https://www.example.com
-MAX_UPLOAD_BYTES=10485760
+ADMIN_TOKEN=replace-with-your-generated-value  // API Bearer token
+CORS_ORIGINS=http://localhost:3000,https://www.example.com  // 限制可呼叫來源
+MAX_UPLOAD_BYTES=10485760  // 上傳大小上限
 ```
 
-- `ADMIN_TOKEN`：保護管理 API，不會自動過期。
-- `PUBLIC_BASE_URL`：產生回傳的圖片網址。
-- `CORS_ORIGINS`：限制可呼叫 API 的瀏覽器來源。
-- `MAX_UPLOAD_BYTES`：設定上傳大小上限。
-
-預設 R2 bucket 透過 `wrangler.jsonc` 的 `IMAGES` binding 連接。
+Profile 名稱、binding 與公開網址統一在 `wrangler.jsonc` 的 `vars.IMAGE_PROFILES` 中管理。
 
 第一次開啟網站時，系統會自動顯示管理金鑰視窗。輸入相同的 `ADMIN_TOKEN`，驗證後會儲存在該瀏覽器的 `localStorage`，直到你從金鑰圖示清除，或清除網站資料。匯出設定時不會包含管理金鑰。
 
@@ -110,16 +104,15 @@ MAX_UPLOAD_BYTES=10485760
 npx wrangler secret put ADMIN_TOKEN
 ```
 
-舊版部署使用的 `AUTH_TOKEN` 仍可使用；新部署請使用 `ADMIN_TOKEN`。
-
 ## Profiles
 
-每個 profile 對應一個 Cloudflare R2 bucket。切換 profile 後，上傳、歷史紀錄、搜尋與刪除都會依 bucket 分開。
+每個 profile 對應一個 Cloudflare R2 bucket。切換 profile 後，上傳、歷史紀錄、搜尋與刪除都會依 bucket 分開
 
 1. 在 Cloudflare 建立 R2 bucket，並啟用公開網址。
 2. 在應用程式中選擇 **+**，填寫下列表格欄位。
-3. 選擇 **Copy setup**，將產生的內容合併至 `wrangler.jsonc`。
-4. 執行 `npm run deploy`，再重新整理應用程式。
+3. 複製 **R2 bucket binding**，直接貼到 `wrangler.jsonc` 的 `r2_buckets` 陣列中。
+4. 複製 **Profile entry**，直接貼到 `vars.IMAGE_PROFILES` 陣列中。
+5. 本機測試時重新啟動 Worker；正式環境執行 `npm run deploy`，再重新整理應用程式。
 
 | 欄位 | 必填 | 填寫內容 | 範例 |
 | --- | --- | --- | --- |
@@ -129,7 +122,7 @@ npx wrangler secret put ADMIN_TOKEN
 | **Worker binding** | 是 | Worker 使用的唯一 JavaScript 變數名稱，建議使用大寫字母與底線。 | `ARCHIVE_IMAGES` |
 | **Public image URL** | 是 | **Bucket → Settings → Public access** 中已啟用的網址，不加結尾斜線。 | `https://archive-img.example.com` |
 
-Binding 名稱與 bucket 名稱必須和 Cloudflare 設定一致。**Copy setup** 只會產生設定片段，請合併至現有設定，不要取代整個檔案。
+預設 profile 保留 `"id": "default"`。兩個複製欄位都已包含尾逗號，可直接貼入對應陣列；`r2_buckets` 與 `IMAGE_PROFILES` 的 binding 名稱必須完全一致。
 
 ## API
 
@@ -189,10 +182,11 @@ Binding 名稱與 bucket 名稱必須和 Cloudflare 設定一致。**Copy setup*
 
    - `name`
    - `r2_buckets[0].bucket_name`
-   - `vars.PUBLIC_BASE_URL`
+   - `vars.IMAGE_PROFILES[0].label`
+   - `vars.IMAGE_PROFILES[0].publicBaseUrl`
    - 若其他瀏覽器來源需要呼叫 API，修改 `vars.CORS_ORIGINS`
 
-3. 為 bucket 連接自訂網域，或啟用 `r2.dev` 網址。`PUBLIC_BASE_URL` 只負責產生回傳網址，不會自動建立或連接網域。
+3. 為 bucket 連接自訂網域，或啟用 `r2.dev` 網址，再將該網址填入 profile 的 `publicBaseUrl`。
 
 4. 第一次部署時，產生正式環境的管理金鑰並存為 Worker secret：
 

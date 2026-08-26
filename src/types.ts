@@ -3,11 +3,12 @@ export interface Env {
   ADMIN_TOKEN?: string;
   /** @deprecated Use ADMIN_TOKEN. Kept for existing deployments. */
   AUTH_TOKEN?: string;
-  IMAGE_PROFILES?: string;
+  IMAGE_PROFILES?: string | unknown[];
+  DEFAULT_PROFILE_LABEL?: string;
   PUBLIC_BASE_URL?: string;
   CORS_ORIGINS?: string;
   MAX_UPLOAD_BYTES?: string;
-  [key: string]: R2Bucket | string | undefined;
+  [key: string]: R2Bucket | string | unknown[] | undefined;
 }
 
 export interface ImageProfileDefinition {

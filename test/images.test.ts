@@ -136,14 +136,20 @@ function createProfileEnv(
   return {
     ...createEnv(defaultBucket),
     ARCHIVE_IMAGES: archiveBucket as unknown as R2Bucket,
-    IMAGE_PROFILES: JSON.stringify([
+    IMAGE_PROFILES: [
+      {
+        id: "default",
+        label: "Blog images",
+        binding: "IMAGES",
+        publicBaseUrl: "https://blog.example.com",
+      },
       {
         id: "archive",
         label: "Archive",
         binding: "ARCHIVE_IMAGES",
         publicBaseUrl: "https://archive.example.com",
       },
-    ]),
+    ],
   };
 }
 
@@ -228,7 +234,7 @@ describe("image API", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       data: [
-        { id: "default", label: "Default", isDefault: true },
+        { id: "default", label: "Blog images", isDefault: true },
         { id: "archive", label: "Archive", isDefault: false },
       ],
     });

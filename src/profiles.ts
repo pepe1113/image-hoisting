@@ -26,19 +26,21 @@ function validPublicBaseUrl(value: string): boolean {
   }
 }
 
-function additionalProfiles(env: Env): ImageProfileDefinition[] {
+function configuredProfiles(env: Env): ImageProfileDefinition[] {
   if (!env.IMAGE_PROFILES) return [];
 
-  let inputs: unknown;
-  try {
-    inputs = JSON.parse(env.IMAGE_PROFILES);
-  } catch {
-    return [];
+  let inputs: unknown = env.IMAGE_PROFILES;
+  if (typeof inputs === "string") {
+    try {
+      inputs = JSON.parse(inputs);
+    } catch {
+      return [];
+    }
   }
   if (!Array.isArray(inputs)) return [];
 
   const profiles: ImageProfileDefinition[] = [];
-  const ids = new Set([DEFAULT_PROFILE_ID]);
+  const ids = new Set<string>();
   for (const value of inputs) {
     if (!value || typeof value !== "object" || Array.isArray(value)) continue;
     const input = value as ProfileInput;
@@ -63,23 +65,32 @@ function additionalProfiles(env: Env): ImageProfileDefinition[] {
       label: input.label.trim(),
       binding: input.binding,
       publicBaseUrl: input.publicBaseUrl,
-      isDefault: false,
+      isDefault: input.id === DEFAULT_PROFILE_ID,
     });
   }
   return profiles;
 }
 
 export function imageProfileDefinitions(env: Env): ImageProfileDefinition[] {
-  return [
-    {
-      id: DEFAULT_PROFILE_ID,
-      label: "Default",
-      binding: "IMAGES",
-      publicBaseUrl: env.PUBLIC_BASE_URL ?? "",
-      isDefault: true,
-    },
-    ...additionalProfiles(env),
-  ];
+  const profiles = configuredProfiles(env);
+  const configuredDefault = profiles.find((profile) => profile.isDefault);
+  if (configuredDefault) {
+    return [
+      {
+        ...configuredDefault,
+        publicBaseUrl: env.PUBLIC_BASE_URL ?? configuredDefault.publicBaseUrl,
+      },
+      ...profiles.filter((profile) => !profile.isDefault),
+    ];
+  }
+
+  return [{
+    id: DEFAULT_PROFILE_ID,
+    label: env.DEFAULT_PROFILE_LABEL?.trim() || "Default",
+    binding: "IMAGES",
+    publicBaseUrl: env.PUBLIC_BASE_URL ?? "",
+    isDefault: true,
+  }, ...profiles];
 }
 
 export function resolveImageProfile(
@@ -90,8 +101,13 @@ export function resolveImageProfile(
   if (!definition) return null;
 
   const bucket = env[definition.binding];
-  if (!bucket || typeof bucket === "string") return null;
-  return { ...definition, bucket };
+  if (
+    !bucket ||
+    typeof bucket !== "object" ||
+    Array.isArray(bucket) ||
+    typeof (bucket as R2Bucket).get !== "function"
+  ) return null;
+  return { ...definition, bucket: bucket as R2Bucket };
 }
 
 export function requestProfileId(request: Request): string {

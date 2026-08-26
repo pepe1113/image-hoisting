@@ -92,17 +92,15 @@ Local settings are stored in `.dev.vars`:
 
 ```dotenv
 ADMIN_TOKEN=replace-with-your-generated-value
-PUBLIC_BASE_URL=https://img.example.com
 CORS_ORIGINS=http://localhost:3000,https://www.example.com
 MAX_UPLOAD_BYTES=10485760
 ```
 
 - `ADMIN_TOKEN` protects the management API. It does not expire automatically.
-- `PUBLIC_BASE_URL` is used to build the returned image URL.
 - `CORS_ORIGINS` controls which browser origins can call the API.
 - `MAX_UPLOAD_BYTES` sets the upload size limit.
 
-The default R2 bucket is connected through the `IMAGES` binding in `wrangler.jsonc`.
+Profile names, bindings, and public URLs are managed together in `vars.IMAGE_PROFILES` in `wrangler.jsonc`.
 
 On first visit, the app opens the admin-key popup automatically. Enter the same `ADMIN_TOKEN`. After verification, the key is stored in that browser's `localStorage` until you clear it from the key icon or clear the site's browser data. The key is not included in settings exports.
 
@@ -120,8 +118,9 @@ Each profile maps to one Cloudflare R2 bucket. Switching profiles keeps uploads,
 
 1. Create an R2 bucket and enable its public URL in Cloudflare.
 2. Select **+** in the app and complete the fields below.
-3. Select **Copy setup** and merge the generated values into `wrangler.jsonc`.
-4. Run `npm run deploy`, then refresh the app.
+3. Copy **R2 bucket binding** and paste it inside `r2_buckets` in `wrangler.jsonc`.
+4. Copy **Profile entry** and paste it inside `vars.IMAGE_PROFILES`.
+5. Restart the local Worker, or run `npm run deploy` for production, then refresh the app.
 
 | Field | Required | What to enter | Example |
 | --- | --- | --- | --- |
@@ -131,7 +130,7 @@ Each profile maps to one Cloudflare R2 bucket. Switching profiles keeps uploads,
 | **Worker binding** | Yes | A unique JavaScript variable name used by the Worker. Uppercase letters and underscores are recommended. | `ARCHIVE_IMAGES` |
 | **Public image URL** | Yes | The active URL under **Bucket → Settings → Public access**, without a trailing slash. | `https://archive-img.example.com` |
 
-The binding name and bucket name must match the values in Cloudflare. **Copy setup** creates a fragment, so merge it into the existing configuration instead of replacing the file.
+`IMAGE_PROFILES` is a normal JSON array; no escaped JSON string is needed. Keep the default profile as the entry with `"id": "default"`. Both copy fields include a trailing comma and are ready to paste directly into their matching arrays. The binding name must match exactly between `r2_buckets` and `IMAGE_PROFILES`.
 
 ## API
 
@@ -191,10 +190,11 @@ Every `/api/*` route requires `Authorization: Bearer <ADMIN_TOKEN>`. Public imag
 
    - `name`
    - `r2_buckets[0].bucket_name`
-   - `vars.PUBLIC_BASE_URL`
+   - `vars.IMAGE_PROFILES[0].label`
+   - `vars.IMAGE_PROFILES[0].publicBaseUrl`
    - `vars.CORS_ORIGINS` when another browser origin needs API access
 
-3. Connect a custom domain or enable an `r2.dev` URL for the bucket. `PUBLIC_BASE_URL` only builds returned image URLs; it does not create or connect the domain.
+3. Connect a custom domain or enable an `r2.dev` URL for the bucket, then save that URL as the profile's `publicBaseUrl`.
 
 4. For the first deployment, create a unique production admin key and store it as a Worker secret:
 

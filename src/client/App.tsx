@@ -80,7 +80,10 @@ export function App() {
         <h1 id="page-title">Upload images.</h1>
         <p>
           Drop, paste, resize, and upload to{" "}
-          {access.activeProfile?.label ?? "your R2 bucket"}.
+          <mark className="active-profile-name" key={settings.activeProfileId}>
+            {access.activeProfile?.label ?? "your R2 bucket"}
+          </mark>
+          .
         </p>
       </section>
 
@@ -108,7 +111,16 @@ export function App() {
       )}
 
       <footer className="app-footer">
-        <span>Self-hosted image workspace</span>
+        <span>
+          Self-hosted image workspace on{" "}
+          <a
+            href="https://github.com/pepe1113/image-hoisting"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Github
+          </a>
+        </span>
         <span>Cloudflare R2 + React</span>
       </footer>
 

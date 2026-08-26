@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BrandIcon,
+  CheckIcon,
+  ChevronDownIcon,
   KeyIcon,
   MenuIcon,
   PlusIcon,
@@ -38,11 +40,59 @@ export function AppHeader({
   onOpenAdminKey,
 }: AppHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const profileTriggerRef = useRef<HTMLButtonElement>(null);
   const canSwitchProfile = profiles.length > 1;
+  const activeProfile =
+    profiles.find((profile) => profile.id === activeProfileId) ?? profiles[0];
+
+  useEffect(() => {
+    if (!profileMenuOpen) return;
+
+    function closeOnOutsideClick(event: PointerEvent): void {
+      if (!profileMenuRef.current?.contains(event.target as Node)) {
+        setProfileMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    return () => document.removeEventListener("pointerdown", closeOnOutsideClick);
+  }, [profileMenuOpen]);
 
   function closeMenuAfter(action: () => void): void {
     action();
     setMobileMenuOpen(false);
+  }
+
+  function focusProfileOption(index: number): void {
+    queueMicrotask(() => {
+      const options = profileMenuRef.current?.querySelectorAll<HTMLButtonElement>(
+        '[role="option"]',
+      );
+      options?.[index]?.focus();
+    });
+  }
+
+  function handleProfileMenuKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
+    const options = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="option"]')];
+    const currentIndex = options.indexOf(document.activeElement as HTMLButtonElement);
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setProfileMenuOpen(false);
+      profileTriggerRef.current?.focus();
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+
+    event.preventDefault();
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? options.length - 1
+        : (currentIndex + (event.key === "ArrowDown" ? 1 : -1) + options.length) % options.length;
+    options[nextIndex]?.focus();
   }
 
   return (
@@ -90,37 +140,71 @@ export function AppHeader({
         </nav>
         <div className="header-actions">
           <div className="profile-control">
-            <label
+            <div
               className={`profile-switcher${canSwitchProfile ? "" : " is-disabled"}`}
+              ref={profileMenuRef}
             >
               <span className="profile-icon">
                 <ProfileIcon />
               </span>
-              <span className="profile-switcher-copy">
-                <span className="profile-caption">Current profile</span>
-                <select
-                  value={activeProfileId}
-                  onChange={(event) => onProfileChange(event.target.value)}
-                  disabled={!canSwitchProfile}
-                  title={
-                    canSwitchProfile
-                      ? "Switch profile"
-                      : "No other profiles available"
+              <button
+                className="profile-trigger"
+                type="button"
+                ref={profileTriggerRef}
+                disabled={!canSwitchProfile}
+                title={canSwitchProfile ? "Switch profile" : "No other profiles available"}
+                aria-label={`Active profile: ${activeProfile?.label ?? "Loading"}`}
+                aria-haspopup="listbox"
+                aria-expanded={profileMenuOpen && canSwitchProfile}
+                aria-controls="profile-menu"
+                onClick={() => setProfileMenuOpen((open) => !open)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape" && profileMenuOpen) {
+                    event.preventDefault();
+                    setProfileMenuOpen(false);
+                    return;
                   }
-                  aria-label="Active profile"
+                  if (!["ArrowDown", "ArrowUp"].includes(event.key) || !canSwitchProfile) return;
+                  event.preventDefault();
+                  setProfileMenuOpen(true);
+                  focusProfileOption(event.key === "ArrowDown" ? 0 : profiles.length - 1);
+                }}
+              >
+                <span className="profile-switcher-copy">
+                  <span className="profile-caption">Current profile</span>
+                  <span className="profile-value">{activeProfile?.label ?? "Loading…"}</span>
+                </span>
+                <ChevronDownIcon className="profile-chevron" />
+              </button>
+              {profileMenuOpen && canSwitchProfile ? (
+                <div
+                  className="profile-menu"
+                  id="profile-menu"
+                  role="listbox"
+                  aria-label="Profiles"
+                  onKeyDown={handleProfileMenuKeyDown}
                 >
-                  {profiles.length > 0 ? (
-                    profiles.map((profile) => (
-                      <option key={profile.id} value={profile.id}>
-                        {profile.label}
-                      </option>
-                    ))
-                  ) : (
-                    <option value={activeProfileId}>Loading…</option>
-                  )}
-                </select>
-              </span>
-            </label>
+                  {profiles.map((profile) => (
+                    <button
+                      key={profile.id}
+                      type="button"
+                      role="option"
+                      aria-selected={profile.id === activeProfileId}
+                      onClick={() => {
+                        onProfileChange(profile.id);
+                        setProfileMenuOpen(false);
+                        setMobileMenuOpen(false);
+                      }}
+                    >
+                      <span className="profile-option-label">{profile.label}</span>
+                      {profile.id === activeProfileId ? (
+                        <CheckIcon className="profile-option-check" />
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
             <button
               className="icon-button add-profile-button"
               type="button"

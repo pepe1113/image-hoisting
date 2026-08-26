@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { CopyIcon } from "../../components/icons";
 import { Modal } from "../../components/Modal";
 
 interface ProfileSetupDialogProps {
@@ -22,17 +23,12 @@ export function ProfileSetupDialog({
     binding: binding.trim(),
     publicBaseUrl: publicBaseUrl.trim().replace(/\/$/u, ""),
   };
-  const setup = [
-    "R2 binding (add to r2_buckets):",
-    JSON.stringify(
-      { binding: profile.binding, bucket_name: bucketName.trim() },
-      null,
-      2,
-    ),
-    "",
-    "Profile entry (add inside IMAGE_PROFILES):",
-    JSON.stringify(profile, null, 2),
-  ].join("\n");
+  const bucketBinding = `${JSON.stringify(
+    { binding: profile.binding, bucket_name: bucketName.trim() },
+    null,
+    2,
+  )},`;
+  const profileEntry = `${JSON.stringify(profile, null, 2)},`;
 
   return (
     <Modal title="Add an R2 profile" onClose={onClose}>
@@ -41,10 +37,7 @@ export function ProfileSetupDialog({
         enter this browser.
       </p>
       <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          onCopy(setup, "Profile setup copied");
-        }}
+        onSubmit={(event) => event.preventDefault()}
       >
         <div className="profile-setup-grid">
           <label className="dialog-field">
@@ -97,26 +90,61 @@ export function ProfileSetupDialog({
             />
           </label>
         </div>
-        <div className="profile-setup-preview">
-          <strong>Deployment values</strong>
-          <pre>
-            <code>{setup}</code>
-          </pre>
+        <div className="profile-setup-values">
+          <div className="profile-setup-preview">
+            <div className="profile-setup-preview-heading">
+              <span>
+                <strong>R2 bucket binding</strong>
+                <small>Paste inside r2_buckets</small>
+              </span>
+              <button
+                className="icon-button profile-setup-copy"
+                type="button"
+                title="Copy R2 bucket binding"
+                aria-label="Copy R2 bucket binding"
+                onClick={(event) => {
+                  if (!event.currentTarget.form?.reportValidity()) return;
+                  onCopy(bucketBinding, "R2 bucket binding copied");
+                }}
+              >
+                <CopyIcon className="header-icon" />
+              </button>
+            </div>
+            <pre>
+              <code>{bucketBinding}</code>
+            </pre>
+          </div>
+          <div className="profile-setup-preview">
+            <div className="profile-setup-preview-heading">
+              <span>
+                <strong>Profile entry</strong>
+                <small>Paste inside IMAGE_PROFILES</small>
+              </span>
+              <button
+                className="icon-button profile-setup-copy"
+                type="button"
+                title="Copy profile entry"
+                aria-label="Copy profile entry"
+                onClick={(event) => {
+                  if (!event.currentTarget.form?.reportValidity()) return;
+                  onCopy(profileEntry, "Profile entry copied");
+                }}
+              >
+                <CopyIcon className="header-icon" />
+              </button>
+            </div>
+            <pre>
+              <code>{profileEntry}</code>
+            </pre>
+          </div>
         </div>
         <p className="profile-setup-note">
-          Merge both values into <code>wrangler.jsonc</code>, then redeploy. The
-          new profile appears in the switcher after deployment.
+          Both values include a trailing comma and can be pasted directly into
+          the matching arrays in <code>wrangler.jsonc</code>.
         </p>
         <div className="dialog-actions">
-          <button
-            className="button button-secondary"
-            type="button"
-            onClick={onClose}
-          >
-            Cancel
-          </button>
-          <button className="button button-primary" type="submit">
-            Copy setup
+          <button className="button button-primary" type="button" onClick={onClose}>
+            Done
           </button>
         </div>
       </form>

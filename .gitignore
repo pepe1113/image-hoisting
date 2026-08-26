@@ -8,3 +8,5 @@ wrangler.jsonc
 coverage/
 dist/
 *.log
+
+AGENTS.md
