@@ -16,7 +16,6 @@
 
 A small self-hosted image upload tool for blogs, documentation, and Markdown posts.
 
-![Header](image.png)
 
 - [Features](#features)
 - [Tech Stack](#tech-stack)

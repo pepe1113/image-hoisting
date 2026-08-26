@@ -1,32 +1,38 @@
 [English](README.md) | [繁體中文](README.zh-TW.md)
 
-# R2 Image Hosting
+<p align="center">
+  <img src="public/icon.png" height="100" style="border-radius:20px;margin:30px 0;">
+  <h1 align="center">R2 Image Hosting</h1>
+</p>
 
-一個適合部落格、技術文件與 Markdown 文章使用的小型自架圖片託管工具（圖床）
-
-<p>
+<p align="center">
   <img src="https://img.shields.io/badge/React-19.2.8-20232A?logo=react&logoColor=61DAFB" alt="React 19.2.8" />
   <img src="https://img.shields.io/badge/TypeScript-6.0.3-3178C6?logo=typescript&logoColor=white" alt="TypeScript 6.0.3" />
 </p>
 
+一個適合部落格、技術文件與 Markdown 文章使用的小型自架圖片託管工具（圖床）
+
+
+
+
+
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Supported Images](#supported-images)
+- [Run Locally](#run-locally)
+- [Configuration](#configuration)
+- [Profiles](#profiles)
+- [API](#api)
+- [Security and Privacy](#security-and-privacy)
+- [Commands](#commands)
+- [Deploy](#deploy)
+- [License](#license)
+
+可自行 clone 到本機或 deploy 至雲端，將圖片拖曳或貼到頁面，在瀏覽器中提供選項 resize、圖片壓縮、優化成 webp 後上傳至 Cloudflare R2，可複製 Markdown 圖片語法或網址
+
 <p align="center">
   <img src="./bettershot_1787586046116.gif" alt="R2 Image Hosting 上傳介面" width="700" />
 </p>
-
-- [R2 Image Hosting](#r2-image-hosting)
-  - [Features](#features)
-  - [Tech Stack](#tech-stack)
-  - [Supported Images](#supported-images)
-  - [Run Locally](#run-locally)
-  - [Configuration](#configuration)
-  - [Profiles](#profiles)
-  - [API](#api)
-  - [Security and Privacy](#security-and-privacy)
-  - [Commands](#commands)
-  - [Deploy](#deploy)
-  - [License](#license)
-
-可自行 clone 到本機或 deploy 至雲端，將圖片拖曳或貼到頁面，在瀏覽器中提供選項 resize、圖片壓縮、優化成 webp 後上傳至 Cloudflare R2，可複製 Markdown 圖片語法或網址
 
 ## Features
 
