@@ -1,0 +1,22 @@
+.settings-field select,
+.settings-field input,
+.upload-filename input {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-input);
+  color: var(--ink);
+  background: var(--canvas);
+}
+
+.dialog-field > input,
+.tag-editor {
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 9px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-input);
+  color: var(--ink);
+  background: var(--canvas);
+}
+

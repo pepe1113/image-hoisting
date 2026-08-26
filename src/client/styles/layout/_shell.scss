@@ -1,0 +1,142 @@
+.app-shell {
+  width: min(calc(100% - 40px), 960px);
+  margin: 0 auto;
+}
+
+.app-header {
+  position: relative;
+  z-index: 25;
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  gap: 22px;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink);
+  text-decoration: none;
+
+  strong,
+  small {
+    display: block;
+  }
+
+  strong {
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  small {
+    margin-top: 2px;
+    color: var(--body);
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+}
+
+.brand-mark {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  border-radius: 10px 16px 9px 14px;
+  color: var(--accent-ink);
+  background: var(--lime);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 800;
+  transform: rotate(-3deg);
+}
+
+.workspace-heading {
+  padding: 48px 0 0;
+
+  h1 {
+    max-width: 640px;
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(30px, 6vw, 40px);
+    font-weight: 800;
+    line-height: 1.06;
+    letter-spacing: -1.6px;
+  }
+
+  mark {
+    display: inline-block;
+    padding: 0 10px 4px;
+    border-radius: 5px 8px 4px 7px;
+    color: var(--accent-ink);
+    background: var(--lime);
+    transform: rotate(-1deg);
+  }
+
+  > p:not(.eyebrow) {
+    margin: 18px 0;
+    color: var(--body);
+    font-size: 16px;
+    line-height: 1.65;
+  }
+
+  .active-profile-name {
+    margin-left: 2px;
+    padding: 1px 7px 2px;
+    border-radius: 6px;
+    color: var(--accent-ink);
+    background: var(--lime);
+    font-weight: 700;
+    transform: none;
+    animation: active-profile-in 360ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+.eyebrow {
+  margin: 0 0 16px;
+  color: var(--violet-deep);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+@keyframes active-profile-in {
+
+  from {
+    opacity: 0.35;
+    transform: translateY(4px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.upload-section,
+.library-section {
+  margin-bottom: 88px;
+}
+
+.section-heading {
+
+  h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 27px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  p {
+    max-width: 540px;
+    margin: 8px 0 0;
+    color: var(--body);
+    font-size: 14px;
+    line-height: 1.55;
+  }
+}
+

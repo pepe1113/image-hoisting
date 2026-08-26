@@ -1,0 +1,20 @@
+.app-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 28px 0 32px;
+  border-top: 2px dashed var(--hairline);
+  color: var(--body);
+  font-family: var(--font-mono);
+  font-size: 11px;
+
+  a {
+    color: var(--ink);
+    font-weight: 700;
+    text-underline-offset: 3px;
+
+    &:hover {
+      color: var(--violet-deep);
+    }
+  }
+}
+
