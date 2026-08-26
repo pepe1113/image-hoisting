@@ -40,21 +40,20 @@
   }
 
   .selected-file {
-    grid-template-columns: 64px minmax(0, 1fr);
+    grid-template-columns: 1fr;
 
-    img {
-      width: 64px;
-      height: 64px;
-      grid-row: auto;
+    .selected-preview {
+      min-height: 240px;
+      max-height: 420px;
+    }
+
+    .selected-file-header {
+      display: grid;
     }
   }
 
-  .upload-tags {
-    grid-column: 1 / -1;
-  }
-
   .selected-actions {
-    grid-column: 1 / -1;
+    width: 100%;
 
     .button-primary {
       flex: 1;
@@ -256,4 +255,3 @@
     transition-duration: 0.01ms !important;
   }
 }
-

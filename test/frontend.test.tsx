@@ -180,6 +180,29 @@ describe("React image workspace", () => {
     expect(screen.getByRole("button", { name: "Close navigation menu" }).getAttribute("aria-expanded")).toBe("true");
   });
 
+  it("links the selected upload preview to the original image", async () => {
+    const BrowserUrl = URL;
+    vi.stubGlobal("URL", class extends BrowserUrl {
+      static createObjectURL = vi.fn(() => "blob:selected-image");
+      static revokeObjectURL = vi.fn();
+    });
+    renderWithAdminKey();
+
+    const file = new File(["image"], "image.png", { type: "image/png" });
+    fireEvent.change(document.querySelector("#file-input") as HTMLInputElement, {
+      target: { files: [file] },
+    });
+
+    const preview = await screen.findByRole("link", {
+      name: "Open full-size preview of image.png",
+    });
+    expect(preview.getAttribute("href")).toBe("blob:selected-image");
+    expect(preview.getAttribute("target")).toBe("_blank");
+    expect(preview.querySelector("img")?.getAttribute("src")).toBe(
+      "blob:selected-image",
+    );
+  });
+
   it("copies two directly pasteable deployment values for a new profile", async () => {
     const writeText = vi.fn(async () => undefined);
     vi.stubGlobal("navigator", { clipboard: { writeText } });

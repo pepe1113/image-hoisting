@@ -1,12 +1,18 @@
 node_modules/
 
+# env files
 .env
 wrangler.jsonc
 .dev.vars
+
 .DS_Store
 .wrangler/
 coverage/
 dist/
 *.log
 
+# agents
 AGENTS.md
+.agents/
+
+.pnpm-store/

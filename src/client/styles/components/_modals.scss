@@ -235,15 +235,6 @@ html[data-theme="system"] .inline-warning {
 
 @media (max-width: 680px) {
 
-  .selected-file-expanded {
-    grid-template-columns: 64px minmax(0, 1fr);
-  }
-
-  .upload-filename,
-  .processing-summary {
-    grid-column: 1 / -1;
-  }
-
   .processing-preview {
     grid-template-columns: 68px minmax(0, 1fr);
 
@@ -293,4 +284,3 @@ html[data-theme="system"] .inline-warning {
   white-space: nowrap;
   border: 0;
 }
-
