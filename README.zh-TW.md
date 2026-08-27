@@ -31,9 +31,8 @@
 可自行 clone 到本機或 deploy 至雲端，將圖片拖曳或貼到頁面，在瀏覽器中提供選項 resize、圖片壓縮、優化成 webp 後上傳至 Cloudflare R2，可複製 Markdown 圖片語法或網址
 
 <p align="center">
-  <img src="./bettershot_1787586046116.gif" alt="R2 Image Hosting 上傳介面" width="700" />
+  <img src="./public/demo.gif" alt="R2 Image Hosting upload workspace" width="500" />
 </p>
-
 ## Features
 
 - **React & TypeScript：** 前端由 React & TypeScript 構成
