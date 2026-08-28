@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { uploadImage } from "../../api";
 import {
   extensionForFile,
+  formatBytes,
   generatedFilename,
   MAX_SOURCE_BYTES,
 } from "../../core";
@@ -16,6 +17,7 @@ interface UseUploadOptions {
   token: string;
   profileId: string;
   preferences: ProfilePreferences;
+  maxUploadBytes: number;
   setNotice: (message: string) => void;
   setToast: (message: string) => void;
   requestErrorMessage: (error: unknown, fallback: string) => string;
@@ -66,6 +68,7 @@ export function useUpload({
   token,
   profileId,
   preferences,
+  maxUploadBytes,
   setNotice,
   setToast,
   requestErrorMessage,
@@ -139,7 +142,7 @@ export function useUpload({
   function generateName(): string {
     if (!selectedFile) return "";
     const extension =
-      preferences.resizePreset === "original" ||
+      preferences.outputFormat === "original" ||
       selectedFile.type === "image/gif"
         ? extensionForFile(selectedFile)
         : "webp";
@@ -169,6 +172,10 @@ export function useUpload({
   async function startUpload(useProcessed: boolean): Promise<void> {
     if (!prepared) return;
     const file = useProcessed ? prepared.processed : prepared.source;
+    if (file.size > maxUploadBytes) {
+      setNotice(`The selected upload exceeds the ${formatBytes(maxUploadBytes)} limit.`);
+      return;
+    }
     let filename = displayFilename.trim();
     if (!filename) filename = generateName();
     if (autoNamed) {

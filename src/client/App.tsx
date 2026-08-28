@@ -5,17 +5,15 @@ import { ImageDialogs } from "./features/library/ImageDialogs";
 import { LibraryPanel } from "./features/library/LibraryPanel";
 import { useImageLibrary } from "./features/library/useImageLibrary";
 import { ProfileSetupDialog } from "./features/profiles/ProfileSetupDialog";
-import { SettingsDialog } from "./features/settings/SettingsDialog";
 import { UploadPanel } from "./features/upload/UploadPanel";
 import { useUpload } from "./features/upload/useUpload";
 import { useNotifications } from "./hooks/useNotifications";
 import { useSettings } from "./hooks/useSettings";
 import { useWorkspaceAccess } from "./hooks/useWorkspaceAccess";
-import type { AppSettings, WorkspaceTab } from "./types";
+import type { WorkspaceTab } from "./types";
 
 export function App() {
   const [tab, setTab] = useState<WorkspaceTab>("upload");
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [profileSetupOpen, setProfileSetupOpen] = useState(false);
   const notifications = useNotifications();
   const settings = useSettings();
@@ -38,6 +36,7 @@ export function App() {
     token: access.token,
     profileId: settings.activeProfileId,
     preferences: settings.preferences,
+    maxUploadBytes: access.limits.maxUploadBytes,
     setNotice: notifications.setNotice,
     setToast: notifications.setToast,
     requestErrorMessage: access.requestErrorMessage,
@@ -50,11 +49,6 @@ export function App() {
     library.resetForProfile();
     upload.reset();
     notifications.setNotice("");
-  }
-
-  function importSettings(imported: AppSettings): void {
-    settings.importKnownSettings(imported, access.profiles);
-    notifications.setToast("Settings imported");
   }
 
   return (
@@ -71,7 +65,6 @@ export function App() {
         onToggleTheme={() =>
           settings.setTheme(settings.resolvedDark ? "light" : "dark")
         }
-        onOpenSettings={() => setSettingsOpen(true)}
         onOpenAdminKey={() => access.setAdminDialogOpen(true)}
       />
 
@@ -97,7 +90,9 @@ export function App() {
         <UploadPanel
           upload={upload}
           preferences={settings.preferences}
-          onOpenSettings={() => setSettingsOpen(true)}
+          profileLabel={profileLabel}
+          limits={access.limits}
+          onPreferences={settings.updatePreferences}
           onCopy={notifications.copyText}
         />
       ) : (
@@ -138,19 +133,11 @@ export function App() {
           onClose={() => setProfileSetupOpen(false)}
         />
       ) : null}
-      {settingsOpen ? (
-        <SettingsDialog
-          settings={settings.settings}
-          preferences={settings.preferences}
-          profileLabel={access.activeProfile?.label ?? "Default"}
-          onTheme={settings.setTheme}
-          onPreferences={settings.updatePreferences}
-          onImport={importSettings}
-          onExport={settings.exportSettings}
-          onClose={() => setSettingsOpen(false)}
-        />
-      ) : null}
-      <ImageDialogs library={library} profileLabel={profileLabel} />
+      <ImageDialogs
+        library={library}
+        profileLabel={profileLabel}
+        limits={access.limits}
+      />
       {notifications.toast ? (
         <div className="toast" role="status" aria-live="polite">
           {notifications.toast}

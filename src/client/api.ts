@@ -1,5 +1,9 @@
 import { parseTagInput } from "./core";
 import type { ImageProfile, ImageRecord } from "./types";
+import {
+  DEFAULT_WORKSPACE_LIMITS,
+  type WorkspaceLimits,
+} from "../shared/limits";
 
 interface ApiErrorPayload {
   error?: { code?: string; message?: string };
@@ -53,13 +57,33 @@ export async function verifyAdminToken(token: string): Promise<void> {
   await apiFetch(token, "/api/auth/verify");
 }
 
-export async function fetchProfiles(token: string, signal?: AbortSignal): Promise<ImageProfile[]> {
-  const payload = await apiFetch<{ data: ImageProfile[] }>(
+function validLimit(value: unknown, fallback: number): number {
+  return Number.isSafeInteger(value) && Number(value) > 0 ? Number(value) : fallback;
+}
+
+export async function fetchProfiles(
+  token: string,
+  signal?: AbortSignal,
+): Promise<{ profiles: ImageProfile[]; limits: WorkspaceLimits }> {
+  const payload = await apiFetch<{ data: ImageProfile[]; limits?: Partial<WorkspaceLimits> }>(
     token,
     "/api/profiles",
     signal ? { signal } : undefined,
   );
-  return payload.data;
+  return {
+    profiles: payload.data,
+    limits: {
+      maxUploadBytes: validLimit(
+        payload.limits?.maxUploadBytes,
+        DEFAULT_WORKSPACE_LIMITS.maxUploadBytes,
+      ),
+      maxTags: validLimit(payload.limits?.maxTags, DEFAULT_WORKSPACE_LIMITS.maxTags),
+      maxTagLength: validLimit(
+        payload.limits?.maxTagLength,
+        DEFAULT_WORKSPACE_LIMITS.maxTagLength,
+      ),
+    },
+  };
 }
 
 export async function fetchImages(

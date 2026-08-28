@@ -8,7 +8,6 @@ import {
   SETTINGS_KEY,
   profilePreferences,
   readSettings,
-  settingsForExport,
 } from "../core";
 import type {
   AppSettings,
@@ -81,7 +80,7 @@ export function useSettings() {
         8192,
         Math.max(320, Math.round(next.maxDimension || 320)),
       ),
-      quality: Math.min(100, Math.max(60, Math.round(next.quality || 60))),
+      quality: Math.min(100, Math.max(10, Math.round(next.quality || 10))),
     };
     setSettings((current) => ({
       ...current,
@@ -93,36 +92,7 @@ export function useSettings() {
     updatePreferences({ ...preferences, view });
   }
 
-  function importKnownSettings(
-    imported: AppSettings,
-    profiles: ImageProfile[],
-  ): void {
-    const known = new Set(profiles.map((profile) => profile.id));
-    const importedProfiles = Object.fromEntries(
-      Object.entries(imported.profiles).filter(([id]) => known.has(id)),
-    );
-    setSettings({
-      ...imported,
-      activeProfileId: known.has(imported.activeProfileId)
-        ? imported.activeProfileId
-        : activeProfileId,
-      profiles: importedProfiles,
-    });
-  }
-
-  function exportSettings(): void {
-    const url = URL.createObjectURL(
-      new Blob([settingsForExport(settings)], { type: "application/json" }),
-    );
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "r2-image-settings.json";
-    anchor.click();
-    URL.revokeObjectURL(url);
-  }
-
   return {
-    settings,
     activeProfileId,
     preferences,
     resolvedDark,
@@ -131,7 +101,5 @@ export function useSettings() {
     reconcileProfiles,
     updatePreferences,
     setView,
-    importKnownSettings,
-    exportSettings,
   };
 }

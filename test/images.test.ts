@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { handleRequest as handleWorkerRequest } from "../src";
 import {
   createShortId,
@@ -237,7 +237,36 @@ describe("image API", () => {
         { id: "default", label: "Blog images", isDefault: true },
         { id: "archive", label: "Archive", isDefault: false },
       ],
+      limits: {
+        maxUploadBytes: 1024,
+        maxTags: 20,
+        maxTagLength: 40,
+      },
     });
+  });
+
+  it("logs safe request context for unexpected Worker errors", async () => {
+    const bucket = new FakeR2Bucket();
+    vi.spyOn(bucket, "list").mockRejectedValue(new Error("R2 unavailable"));
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const response = await handleRequest(
+      new Request("https://api.example.com/api/images?private=secret"),
+      createEnv(bucket),
+    );
+
+    expect(response.status).toBe(500);
+    expect(errorLog).toHaveBeenCalledWith(
+      "Unhandled Worker request error",
+      {
+        method: "GET",
+        pathname: "/api/images",
+        failure: { name: "Error", message: "R2 unavailable" },
+      },
+    );
+    expect(JSON.stringify(errorLog.mock.calls)).not.toContain("private=secret");
+    expect(JSON.stringify(errorLog.mock.calls)).not.toContain(ADMIN_TOKEN);
+    errorLog.mockRestore();
   });
 
   it("keeps profile uploads and image reads isolated by bucket", async () => {
@@ -357,6 +386,9 @@ describe("image API", () => {
     expect(image.status).toBe(200);
     expect(image.headers.get("Content-Type")).toBe("image/png");
     expect(image.headers.get("Cache-Control")).toBe("public, max-age=0, must-revalidate");
+    expect(image.headers.get("Cloudflare-CDN-Cache-Control")).toBe(
+      "public, max-age=0, must-revalidate",
+    );
     expect(image.headers.get("Content-Security-Policy")).toBe("default-src 'none'; sandbox");
     expect(new Uint8Array(await image.arrayBuffer())).toEqual(
       new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),

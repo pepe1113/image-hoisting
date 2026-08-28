@@ -10,6 +10,10 @@ import {
   saveAdminToken,
 } from "../core";
 import type { ImageProfile } from "../types";
+import {
+  DEFAULT_WORKSPACE_LIMITS,
+  type WorkspaceLimits,
+} from "../../shared/limits";
 
 interface UseWorkspaceAccessOptions {
   activeProfileId: string;
@@ -34,15 +38,17 @@ export function useWorkspaceAccess({
     return { token, dialogOpen: !token };
   });
   const [profiles, setProfiles] = useState<ImageProfile[]>([]);
+  const [limits, setLimits] = useState<WorkspaceLimits>(DEFAULT_WORKSPACE_LIMITS);
 
   useEffect(() => {
     if (!adminAuth.token) return;
     const controller = new AbortController();
     let ignore = false;
     fetchProfiles(adminAuth.token, controller.signal)
-      .then((available) => {
+      .then(({ profiles: available, limits: serverLimits }) => {
         if (ignore) return;
         setProfiles(available);
+        setLimits(serverLimits);
         onProfilesLoaded(available);
       })
       .catch((error: Error) => {
@@ -103,6 +109,7 @@ export function useWorkspaceAccess({
     token: adminAuth.token,
     adminDialogOpen: adminAuth.dialogOpen,
     profiles,
+    limits,
     activeProfile,
     setAdminDialogOpen: setDialogOpen,
     saveAdminKey: saveKey,

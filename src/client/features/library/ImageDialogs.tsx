@@ -1,15 +1,18 @@
 import { Modal } from "../../components/Modal";
 import { TagEditor } from "../../components/TagEditor";
 import type { ImageLibraryController } from "./useImageLibrary";
+import type { WorkspaceLimits } from "../../../shared/limits";
 
 interface ImageDialogsProps {
   library: ImageLibraryController;
   profileLabel: string;
+  limits: WorkspaceLimits;
 }
 
 export function ImageDialogs({
   library,
   profileLabel,
+  limits,
 }: ImageDialogsProps) {
   const {
     editTarget,
@@ -45,7 +48,12 @@ export function ImageDialogs({
             </label>
             <label className="dialog-field">
               <span>Tags</span>
-              <TagEditor tags={editTags} onChange={setEditTags} />
+              <TagEditor
+                tags={editTags}
+                maxTags={limits.maxTags}
+                maxTagLength={limits.maxTagLength}
+                onChange={setEditTags}
+              />
             </label>
             <div className="dialog-actions">
               <button

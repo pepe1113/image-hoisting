@@ -51,6 +51,8 @@ export function ProcessingDialog({
         <strong>{prepared.scalePercent}%</strong>
         <span>File size</span>
         <strong>{saving}</strong>
+        <span>Processing time</span>
+        <strong>{prepared.processingMs} ms</strong>
       </div>
       {prepared.warning ? (
         <p className="inline-warning">{prepared.warning}</p>

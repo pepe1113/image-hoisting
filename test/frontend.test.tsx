@@ -5,6 +5,7 @@ import { App } from "../src/client/App";
 import {
   ADMIN_TOKEN_KEY,
   DEFAULT_SETTINGS,
+  PROCESSING_PRESETS,
   calculateTargetSize,
   formatBytes,
   generatedFilename,
@@ -13,8 +14,12 @@ import {
   parseTagInput,
   savedPercent,
   scalePercent,
-  settingsForExport,
 } from "../src/client/core";
+import { prepareImage } from "../src/client/image-processing";
+import {
+  applyUnsharpMask,
+  SHARPEN_AMOUNTS,
+} from "../src/client/image-processing-core";
 
 function memoryStorage(): Storage {
   const entries = new Map<string, string>();
@@ -57,6 +62,7 @@ const HISTORY_IMAGES = [
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -113,16 +119,77 @@ describe("frontend helpers", () => {
     expect(generatedFilename("webp", new Uint8Array(8))).toBe("aaaaaaaa.webp");
   });
 
-  it("validates versioned safe settings exports", () => {
+  it("validates stored settings", () => {
     expect(parseSettings(DEFAULT_SETTINGS)).toEqual(DEFAULT_SETTINGS);
-    expect(parseSettings({ ...DEFAULT_SETTINGS, version: 2 })).toBeNull();
     expect(parseSettings({
       ...DEFAULT_SETTINGS,
       profiles: {
-        default: { resizePreset: "custom", maxDimension: 200, quality: 85, view: "grid" },
+        default: {
+          processingPreset: "custom",
+          maxDimension: 200,
+          quality: 85,
+          sharpen: "off",
+          outputFormat: "webp",
+          view: "grid",
+        },
       },
     })).toBeNull();
-    expect(settingsForExport(DEFAULT_SETTINGS)).toContain('"version": 1');
+    expect(parseSettings({
+      theme: "dark",
+      activeProfileId: "default",
+      profiles: {
+        default: { resizePreset: "original", maxDimension: 1920, quality: 85, view: "list" },
+      },
+    })).toBeNull();
+  });
+
+  it("maps presets and sharpens contrast without changing alpha", () => {
+    expect(PROCESSING_PRESETS.standard).toEqual({
+      maxDimension: 1600,
+      quality: 80,
+      sharpen: "low",
+      outputFormat: "webp",
+    });
+    expect(SHARPEN_AMOUNTS).toEqual({ off: 0, low: 0.2, mid: 0.4, high: 0.7 });
+    const pixels = new Uint8ClampedArray([
+      50, 50, 50, 255, 50, 50, 50, 255, 50, 50, 50, 255,
+      50, 50, 50, 255, 100, 100, 100, 128, 50, 50, 50, 255,
+      50, 50, 50, 255, 50, 50, 50, 255, 50, 50, 50, 255,
+    ]);
+    applyUnsharpMask(pixels, 3, 3, 0.7);
+    expect(pixels[16]).toBeGreaterThan(100);
+    expect(pixels[19]).toBe(128);
+  });
+
+  it("falls back to the main-thread canvas when image workers are unavailable", async () => {
+    const close = vi.fn();
+    vi.stubGlobal("Worker", undefined);
+    vi.stubGlobal("OffscreenCanvas", undefined);
+    vi.stubGlobal("createImageBitmap", vi.fn(async () => ({ width: 400, height: 300, close })));
+    const canvas = document.createElement("canvas");
+    const context = {
+      drawImage: vi.fn(),
+      getImageData: vi.fn(() => ({ data: new Uint8ClampedArray(4), width: 1, height: 1 })),
+      putImageData: vi.fn(),
+    };
+    vi.spyOn(canvas, "getContext").mockReturnValue(context as unknown as CanvasRenderingContext2D);
+    vi.spyOn(canvas, "toBlob").mockImplementation((callback) => {
+      callback(new Blob(["webp"], { type: "image/webp" }));
+    });
+    vi.spyOn(document, "createElement").mockReturnValue(canvas);
+
+    const result = await prepareImage(
+      new File(["source"], "cover.png", { type: "image/png" }),
+      { ...PROCESSING_PRESETS.fast, processingPreset: "fast", view: "grid" },
+    );
+
+    expect(result.changed).toBe(true);
+    expect(result.outputWidth).toBe(400);
+    expect(result.outputHeight).toBe(300);
+    expect(result.processed.type).toBe("image/webp");
+    expect(close).toHaveBeenCalledOnce();
+    expect(canvas.width).toBe(0);
+    expect(canvas.height).toBe(0);
   });
 });
 
@@ -201,6 +268,80 @@ describe("React image workspace", () => {
     expect(preview.querySelector("img")?.getAttribute("src")).toBe(
       "blob:selected-image",
     );
+  });
+
+  it("edits processing in the upload panel and calculates proportional dimensions", async () => {
+    const BrowserUrl = URL;
+    vi.stubGlobal("URL", class extends BrowserUrl {
+      static createObjectURL = vi.fn(() => "blob:processing-image");
+      static revokeObjectURL = vi.fn();
+    });
+    renderWithAdminKey();
+
+    const file = new File(["image"], "cover.png", { type: "image/png" });
+    fireEvent.change(document.querySelector("#file-input") as HTMLInputElement, {
+      target: { files: [file] },
+    });
+
+    const preview = await screen.findByAltText("Preview of the image ready to upload");
+    Object.defineProperties(preview, {
+      naturalWidth: { configurable: true, value: 4000 },
+      naturalHeight: { configurable: true, value: 3000 },
+    });
+    fireEvent.load(preview);
+
+    expect(await screen.findByText("Processing for Default")).toBeTruthy();
+    expect(screen.getByText("4000×3000 → 2048×1536px")).toBeTruthy();
+
+    const longEdge = screen.getByRole("slider", { name: "Maximum long edge" });
+    const quality = screen.getByRole("slider", { name: "WebP quality" });
+    fireEvent.change(longEdge, { target: { value: "1280" } });
+    fireEvent.change(quality, { target: { value: "90" } });
+
+    expect(screen.getByText("4000×3000 → 1280×960px")).toBeTruthy();
+    expect(screen.getByText("1280px")).toBeTruthy();
+    expect(screen.getByText("90%")).toBeTruthy();
+    expect((screen.getByLabelText("Preset") as unknown as { value: string }).value).toBe("custom");
+
+    fireEvent.change(screen.getByLabelText("Preset"), { target: { value: "standard" } });
+    expect(screen.getByText("4000×3000 → 1600×1200px")).toBeTruthy();
+    expect((screen.getByLabelText("Sharpen") as unknown as { value: string }).value).toBe("low");
+
+    expect(screen.queryByRole("button", { name: "Open settings" })).toBeNull();
+  });
+
+  it("locks processing controls and shows Original for GIF uploads", async () => {
+    const BrowserUrl = URL;
+    vi.stubGlobal("URL", class extends BrowserUrl {
+      static createObjectURL = vi.fn(() => "blob:animated-image");
+      static revokeObjectURL = vi.fn();
+    });
+    renderWithAdminKey();
+
+    fireEvent.change(document.querySelector("#file-input") as HTMLInputElement, {
+      target: { files: [new File(["gif"], "animated.gif", { type: "image/gif" })] },
+    });
+
+    expect(await screen.findByText("Animated GIF stays in its original format.")).toBeTruthy();
+    expect(screen.getByLabelText("Preset").hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("slider", { name: "Maximum long edge" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("slider", { name: "WebP quality" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByLabelText("Sharpen").hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Original" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "WebP" }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("closes a modal with cancel and restores focus", () => {
+    renderWithAdminKey();
+    const trigger = screen.getByRole("button", { name: "Add profile" });
+    trigger.focus();
+    fireEvent.click(trigger);
+
+    const dialog = screen.getByRole("dialog", { name: "Add an R2 profile" });
+    fireEvent(dialog, new Event("cancel", { bubbles: false, cancelable: true }));
+
+    expect(screen.queryByRole("dialog", { name: "Add an R2 profile" })).toBeNull();
+    expect(document.activeElement).toBe(trigger);
   });
 
   it("copies two directly pasteable deployment values for a new profile", async () => {

@@ -4,17 +4,24 @@ import { CloseIcon } from "./icons";
 
 interface TagEditorProps {
   tags: string[];
+  maxTags?: number;
+  maxTagLength?: number;
   onChange: (tags: string[]) => void;
 }
 
-export function TagEditor({ tags, onChange }: TagEditorProps) {
+export function TagEditor({
+  tags,
+  maxTags = MAX_TAGS,
+  maxTagLength = MAX_TAG_LENGTH,
+  onChange,
+}: TagEditorProps) {
   const [input, setInput] = useState("");
 
   function commit(value = input): void {
     const next = parseTagInput([...tags, ...parseTagInput(value)].join(","));
     if (
-      next.length <= MAX_TAGS &&
-      next.every((tag) => tag.length <= MAX_TAG_LENGTH)
+      next.length <= maxTags &&
+      next.every((tag) => tag.length <= maxTagLength)
     ) {
       onChange(next);
       setInput("");

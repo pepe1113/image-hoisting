@@ -1,26 +1,34 @@
 import type {
   AppSettings,
   ImageRecord,
+  OutputFormat,
+  ProcessingPreset,
   ProfilePreferences,
-  ResizePreset,
+  SharpenLevel,
   Theme,
 } from "./types";
+export { MAX_TAG_LENGTH, MAX_TAGS } from "../shared/limits";
 
-export const SETTINGS_KEY = "r2-image-settings-v1";
+export const SETTINGS_KEY = "r2-image-settings";
 export const ADMIN_TOKEN_KEY = "r2-image-admin-token";
 export const MAX_SOURCE_BYTES = 40 * 1024 * 1024;
-export const MAX_TAGS = 20;
-export const MAX_TAG_LENGTH = 40;
 
 export const DEFAULT_PROFILE_PREFERENCES: ProfilePreferences = {
-  resizePreset: "large",
-  maxDimension: 1920,
+  processingPreset: "high",
+  maxDimension: 2048,
   quality: 85,
+  sharpen: "mid",
+  outputFormat: "webp",
   view: "grid",
 };
 
+export const PROCESSING_PRESETS = {
+  high: { maxDimension: 2048, quality: 85, sharpen: "mid", outputFormat: "webp" },
+  standard: { maxDimension: 1600, quality: 80, sharpen: "low", outputFormat: "webp" },
+  fast: { maxDimension: 1000, quality: 70, sharpen: "off", outputFormat: "webp" },
+} as const satisfies Record<Exclude<ProcessingPreset, "custom">, Pick<ProfilePreferences, "maxDimension" | "quality" | "sharpen" | "outputFormat">>;
+
 export const DEFAULT_SETTINGS: AppSettings = {
-  version: 1,
   theme: "system",
   activeProfileId: "default",
   profiles: {},
@@ -139,29 +147,41 @@ function isTheme(value: unknown): value is Theme {
   return value === "system" || value === "light" || value === "dark";
 }
 
-function isPreset(value: unknown): value is ResizePreset {
-  return value === "original" || value === "large" || value === "medium" || value === "custom";
+function isPreset(value: unknown): value is ProcessingPreset {
+  return value === "high" || value === "standard" || value === "fast" || value === "custom";
+}
+
+function isSharpen(value: unknown): value is SharpenLevel {
+  return value === "off" || value === "low" || value === "mid" || value === "high";
+}
+
+function isOutputFormat(value: unknown): value is OutputFormat {
+  return value === "original" || value === "webp";
 }
 
 function parsePreferences(value: unknown): ProfilePreferences | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const item = value as Record<string, unknown>;
   if (
-    !isPreset(item.resizePreset) ||
+    !isPreset(item.processingPreset) ||
     !Number.isInteger(item.maxDimension) ||
     Number(item.maxDimension) < 320 ||
     Number(item.maxDimension) > 8192 ||
     !Number.isInteger(item.quality) ||
-    Number(item.quality) < 60 ||
+    Number(item.quality) < 10 ||
     Number(item.quality) > 100 ||
+    !isSharpen(item.sharpen) ||
+    !isOutputFormat(item.outputFormat) ||
     (item.view !== "grid" && item.view !== "list")
   ) {
     return null;
   }
   return {
-    resizePreset: item.resizePreset,
+    processingPreset: item.processingPreset,
     maxDimension: Number(item.maxDimension),
     quality: Number(item.quality),
+    sharpen: item.sharpen,
+    outputFormat: item.outputFormat,
     view: item.view,
   };
 }
@@ -170,7 +190,6 @@ export function parseSettings(value: unknown): AppSettings | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const item = value as Record<string, unknown>;
   if (
-    item.version !== 1 ||
     !isTheme(item.theme) ||
     typeof item.activeProfileId !== "string" ||
     !item.profiles ||
@@ -186,7 +205,6 @@ export function parseSettings(value: unknown): AppSettings | null {
     profiles[id] = parsed;
   }
   return {
-    version: 1,
     theme: item.theme,
     activeProfileId: item.activeProfileId,
     profiles,
@@ -199,8 +217,4 @@ export function readSettings(): AppSettings {
   } catch {
     return DEFAULT_SETTINGS;
   }
-}
-
-export function settingsForExport(settings: AppSettings): string {
-  return `${JSON.stringify(settings, null, 2)}\n`;
 }

@@ -1,6 +1,13 @@
 import { requireAdmin } from "./auth";
 import { getCors, error, json } from "./http";
-import { deleteImage, listImages, serveImage, updateImage, uploadImage } from "./images";
+import {
+  deleteImage,
+  listImages,
+  serveImage,
+  updateImage,
+  uploadImage,
+  workspaceLimits,
+} from "./images";
 import { publicImageProfiles } from "./profiles";
 import type { Env } from "./types";
 
@@ -50,7 +57,11 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   }
 
   if (url.pathname === "/api/profiles" && request.method === "GET") {
-    return json({ data: publicImageProfiles(env) }, 200, cors.headers);
+    return json(
+      { data: publicImageProfiles(env), limits: workspaceLimits(env) },
+      200,
+      cors.headers,
+    );
   }
 
   if (url.pathname !== IMAGE_ROUTE) {
@@ -70,7 +81,15 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     if (request.method === "DELETE") {
       return await deleteImage(request, env, cors.headers);
     }
-  } catch {
+  } catch (cause) {
+    const failure = cause instanceof Error
+      ? { name: cause.name, message: cause.message }
+      : { name: "UnknownError", message: String(cause) };
+    console.error("Unhandled Worker request error", {
+      method: request.method,
+      pathname: url.pathname,
+      failure,
+    });
     return error("INTERNAL_ERROR", "An unexpected error occurred", 500, cors.headers);
   }
 

@@ -7,7 +7,6 @@ import {
   MenuIcon,
   PlusIcon,
   ProfileIcon,
-  SettingsIcon,
   ThemeIcon,
 } from "./icons";
 import type { ImageProfile, WorkspaceTab } from "../types";
@@ -22,7 +21,6 @@ interface AppHeaderProps {
   onProfileChange: (profileId: string) => void;
   onAddProfile: () => void;
   onToggleTheme: () => void;
-  onOpenSettings: () => void;
   onOpenAdminKey: () => void;
 }
 
@@ -36,7 +34,6 @@ export function AppHeader({
   onProfileChange,
   onAddProfile,
   onToggleTheme,
-  onOpenSettings,
   onOpenAdminKey,
 }: AppHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -228,15 +225,6 @@ export function AppHeader({
               onClick={() => closeMenuAfter(onToggleTheme)}
             >
               <ThemeIcon dark={resolvedDark} />
-            </button>
-            <button
-              className="icon-button utility-button"
-              type="button"
-              title="Open settings"
-              aria-label="Open settings"
-              onClick={() => closeMenuAfter(onOpenSettings)}
-            >
-              <SettingsIcon />
             </button>
             <button
               className={`icon-button key-button utility-button${hasAdminToken ? " is-authenticated" : ""}`}

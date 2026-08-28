@@ -38,14 +38,14 @@
 - **React & TypeScript：** 前端由 React & TypeScript 構成
 - **上傳：** 拖曳單一檔案，或使用 `Command + V`／`Ctrl + V` 貼上圖片
 - **預覽：** 上傳前先確認圖片
-- **處理確認：** 比較尺寸、檔案大小、縮放比例與節省空間，再選擇原圖或處理後圖片
-- **自訂處理：** 可使用原圖、1920px／85%、1280px／82%，或自訂長邊與 WebP 品質
+- **處理確認：** 比較尺寸、檔案大小、縮放比例、節省空間與處理時間，再進行上傳
+- **自訂處理：** 可使用 High、Standard、Fast，或自訂最長邊、WebP 品質與銳化強度
+- **流暢處理：** 支援時由 Web Worker 執行縮放、銳化與 WebP 編碼，並保留原生 Canvas fallback
 - **自動命名：** 輸入顯示檔名，或產生八字元隨機名稱
 - **上傳結果：** 上傳成功後顯示圖片、Markdown 與圖片網址
 - **Profiles：** 切換不同 R2 bucket，並透過介面產生新的伺服器端 profile 設定
 - **固定管理金鑰：** 使用部署者管理的 Bearer token 保護所有管理 API
 - **主題：** 跟隨系統，或選擇亮色／深色模式
-- **設定轉移：** 將介面與圖片處理偏好匯出或匯入為 JSON
 - **標籤：** 新增標籤，並依標籤搜尋圖片
 - **編輯：** 修改顯示檔名，不改變圖片網址
 - **刪除：** 從圖片庫刪除圖片
@@ -60,7 +60,7 @@
 | React、TypeScript、Vite | 瀏覽器介面 |
 | Vitest | 自動化測試 |
 
-瀏覽器端執行依賴為 React 與 ReactDOM；圖片處理使用瀏覽器原生 API
+瀏覽器端執行依賴為 React 與 ReactDOM；圖片處理使用瀏覽器原生 API，不另外加入圖片 codec dependency
 
 ## Supported Images
 
@@ -101,7 +101,7 @@ MAX_UPLOAD_BYTES=10485760  # 上傳大小上限
 
 Profile 名稱、binding 與公開網址統一在 `wrangler.jsonc` 的 `vars.IMAGE_PROFILES` 中管理。
 
-第一次開啟網站時，系統會自動顯示管理金鑰視窗。輸入相同的 `ADMIN_TOKEN`，驗證後會儲存在該瀏覽器的 `localStorage`，直到你從金鑰圖示清除，或清除網站資料。匯出設定時不會包含管理金鑰。
+第一次開啟網站時，系統會自動顯示管理金鑰視窗。輸入相同的 `ADMIN_TOKEN`，驗證後會儲存在該瀏覽器的 `localStorage`，直到你從金鑰圖示清除，或清除網站資料。
 
 正式環境請將金鑰存為加密的 Worker secret，不要放在 Wrangler 變數中：
 
@@ -191,7 +191,7 @@ npx wrangler secret put ADMIN_TOKEN
    - `vars.IMAGE_PROFILES[0].publicBaseUrl`
    - 若其他瀏覽器來源需要呼叫 API，修改 `vars.CORS_ORIGINS`
 
-3. 為 bucket 連接自訂網域，或啟用 `r2.dev` 網址，再將該網址填入 profile 的 `publicBaseUrl`。
+3. 為 bucket 連接 R2 自訂網域，再將網址填入 profile 的 `publicBaseUrl`。`r2.dev` 僅用於本機或短期測試，具有流量限制，也不提供正式環境的快取控制。圖片可保存於 edge，但每次重用前會重新驗證，因此刪除物件後不會留下仍在 fresh 狀態的長效副本。
 
 4. 第一次部署時，產生正式環境的管理金鑰並存為 Worker secret：
 

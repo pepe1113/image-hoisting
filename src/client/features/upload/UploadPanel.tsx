@@ -1,6 +1,14 @@
+import { useState } from "react";
 import { TagEditor } from "../../components/TagEditor";
-import { formatBytes } from "../../core";
-import type { ProfilePreferences } from "../../types";
+import { Tooltip } from "../../components/Tooltip";
+import { calculateTargetSize, formatBytes, PROCESSING_PRESETS } from "../../core";
+import type {
+  OutputFormat,
+  ProcessingPreset,
+  ProfilePreferences,
+  SharpenLevel,
+} from "../../types";
+import type { WorkspaceLimits } from "../../../shared/limits";
 import { ProcessingDialog } from "./ProcessingDialog";
 import { UploadResult } from "./UploadResult";
 import type { UploadController } from "./useUpload";
@@ -8,16 +16,27 @@ import type { UploadController } from "./useUpload";
 interface UploadPanelProps {
   upload: UploadController;
   preferences: ProfilePreferences;
-  onOpenSettings: () => void;
+  profileLabel: string;
+  limits: WorkspaceLimits;
+  onPreferences: (preferences: ProfilePreferences) => void;
   onCopy: (value: string, message: string) => void;
+}
+
+interface MeasuredImage {
+  file: File;
+  width: number;
+  height: number;
 }
 
 export function UploadPanel({
   upload,
   preferences,
-  onOpenSettings,
+  profileLabel,
+  limits,
+  onPreferences,
   onCopy,
 }: UploadPanelProps) {
+  const [measuredImage, setMeasuredImage] = useState<MeasuredImage | null>(null);
   const {
     selectedFile,
     displayFilename,
@@ -39,6 +58,29 @@ export function UploadPanel({
     handlePrepare,
     startUpload,
   } = upload;
+  const sourceDimensions = measuredImage?.file === selectedFile ? measuredImage : null;
+  const isGif = selectedFile?.type === "image/gif";
+  const effectiveOutputFormat = isGif ? "original" : preferences.outputFormat;
+  const processingDisabled =
+    isGif || effectiveOutputFormat === "original";
+  const outputDimensions = sourceDimensions
+    ? processingDisabled
+      ? { width: sourceDimensions.width, height: sourceDimensions.height }
+      : calculateTargetSize(
+          sourceDimensions.width,
+          sourceDimensions.height,
+          preferences.maxDimension,
+        )
+    : null;
+
+  function setPreset(preset: ProcessingPreset): void {
+    const presetValues = preset === "custom" ? {} : PROCESSING_PRESETS[preset];
+    onPreferences({ ...preferences, ...presetValues, processingPreset: preset });
+  }
+
+  function customize(changes: Partial<ProfilePreferences>): void {
+    onPreferences({ ...preferences, ...changes, processingPreset: "custom" });
+  }
 
   return (
     <>
@@ -95,10 +137,19 @@ export function UploadPanel({
                 rel="noreferrer"
                 aria-label={`Open full-size preview of ${selectedFile.name}`}
               >
-                <img
-                  src={previewUrl}
-                  alt="Preview of the image ready to upload"
-                />
+                {previewUrl ? (
+                  <img
+                    src={previewUrl}
+                    alt="Preview of the image ready to upload"
+                    onLoad={(event) => {
+                      setMeasuredImage({
+                        file: selectedFile,
+                        width: event.currentTarget.naturalWidth,
+                        height: event.currentTarget.naturalHeight,
+                      });
+                    }}
+                  />
+                ) : null}
               </a>
               <div className="selected-file-details">
                 <div className="selected-file-header">
@@ -148,18 +199,133 @@ export function UploadPanel({
                 </label>
                 <label className="upload-tags">
                   <span>Tags (optional)</span>
-                  <TagEditor tags={uploadTags} onChange={setUploadTags} />
+                  <TagEditor
+                    tags={uploadTags}
+                    maxTags={limits.maxTags}
+                    maxTagLength={limits.maxTagLength}
+                    onChange={setUploadTags}
+                  />
                 </label>
-                <div className="processing-summary">
-                  <span>
-                    {preferences.resizePreset === "original"
-                      ? "Original image"
-                      : `Max ${preferences.maxDimension}px · WebP ${preferences.quality}%`}
-                  </span>
-                  <button type="button" onClick={onOpenSettings}>
-                    Change
-                  </button>
-                </div>
+                <fieldset className="upload-processing">
+                  <legend>Processing for {profileLabel}</legend>
+                  <div className="processing-control">
+                    <span className="processing-control-label">
+                      <label htmlFor="processing-preset">Preset</label>
+                      <Tooltip content="Choose a starting point. Changing any setting switches the preset to Custom." />
+                    </span>
+                    <select
+                      id="processing-preset"
+                      value={preferences.processingPreset}
+                      disabled={processingDisabled}
+                      onChange={(event) => setPreset(event.target.value as ProcessingPreset)}
+                    >
+                      <option value="high">High · 2048 / 85 / Mid</option>
+                      <option value="standard">Standard · 1600 / 80 / Low</option>
+                      <option value="fast">Fast · 1000 / 70 / Off</option>
+                      <option value="custom">Custom</option>
+                    </select>
+                  </div>
+                  <div className="processing-sliders">
+                    <div className="processing-slider">
+                      <span className="processing-control-label">
+                        <label htmlFor="maximum-long-edge">Maximum long edge</label>
+                        <Tooltip content="Limits the longest edge and reduces both dimensions proportionally. Smaller images are not enlarged." />
+                        <output>{preferences.maxDimension}px</output>
+                      </span>
+                      <input
+                        id="maximum-long-edge"
+                        aria-label="Maximum long edge"
+                        type="range"
+                        min="320"
+                        max="8192"
+                        step="1"
+                        value={preferences.maxDimension}
+                        disabled={processingDisabled}
+                        onChange={(event) =>
+                          customize({
+                            maxDimension: Number(event.target.value),
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="processing-slider">
+                      <span className="processing-control-label">
+                        <label htmlFor="webp-quality">WebP quality</label>
+                        <Tooltip content="Controls lossy compression. 80–85 is a practical starting range, but the result varies by image." />
+                        <output>{preferences.quality}%</output>
+                      </span>
+                      <input
+                        id="webp-quality"
+                        aria-label="WebP quality"
+                        type="range"
+                        min="10"
+                        max="100"
+                        step="1"
+                        value={preferences.quality}
+                        disabled={processingDisabled}
+                        onChange={(event) =>
+                          customize({
+                            quality: Number(event.target.value),
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="processing-options">
+                    <div className="processing-control">
+                      <span className="processing-control-label">
+                        <label htmlFor="sharpen-level">Sharpen</label>
+                        <Tooltip content="Adds subtle edge contrast after resizing to recover some apparent detail." />
+                      </span>
+                      <select
+                        id="sharpen-level"
+                        value={preferences.sharpen}
+                        disabled={processingDisabled}
+                        onChange={(event) => customize({ sharpen: event.target.value as SharpenLevel })}
+                      >
+                        <option value="off">Off</option>
+                        <option value="low">Low</option>
+                        <option value="mid">Mid</option>
+                        <option value="high">High</option>
+                      </select>
+                    </div>
+                    <div className="processing-control">
+                      <span className="processing-control-label">
+                        <span id="output-format-label">Format</span>
+                        <Tooltip content="WebP is often smaller. Original keeps the file byte-for-byte and skips resizing and sharpening." />
+                      </span>
+                      <div className="format-toggle" role="group" aria-labelledby="output-format-label">
+                        {(["original", "webp"] as const).map((format: OutputFormat) => (
+                          <button
+                            type="button"
+                            className={effectiveOutputFormat === format ? "is-active" : ""}
+                            aria-pressed={effectiveOutputFormat === format}
+                            disabled={isGif}
+                            key={format}
+                            onClick={() => customize({ outputFormat: format })}
+                          >
+                            {format === "original" ? "Original" : "WebP"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="processing-dimensions" aria-live="polite">
+                    <span>Proportional output</span>
+                    <strong>
+                      {sourceDimensions && outputDimensions
+                        ? `${sourceDimensions.width}×${sourceDimensions.height} → ${outputDimensions.width}×${outputDimensions.height}px`
+                        : "Reading image dimensions…"}
+                    </strong>
+                    <small>
+                      {isGif
+                        ? "Animated GIF stays in its original format."
+                        : preferences.outputFormat === "original"
+                          ? "Original keeps the file byte-for-byte."
+                          : "The original aspect ratio is preserved."}
+                    </small>
+                  </div>
+                </fieldset>
               </div>
             </div>
           )}

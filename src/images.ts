@@ -1,17 +1,21 @@
 import { error, json } from "./http";
 import { requestProfileId, resolveImageProfile } from "./profiles";
+import {
+  DEFAULT_MAX_UPLOAD_BYTES,
+  MAX_TAG_LENGTH,
+  MAX_TAGS,
+  type WorkspaceLimits,
+} from "./shared/limits";
 import type { Env, ResolvedImageProfile } from "./types";
 
-const DEFAULT_MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const DEFAULT_LIST_LIMIT = 50;
 const MAX_LIST_LIMIT = 100;
 const R2_SCAN_LIMIT = 1000;
 const MAX_FILENAME_LENGTH = 180;
-const MAX_TAGS = 20;
-const MAX_TAG_LENGTH = 40;
 const SHORT_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 const SHORT_ID_BYTES = 6;
 const SHORT_ID_ATTEMPTS = 5;
+const IMAGE_CACHE_CONTROL = "public, max-age=0, must-revalidate";
 
 const MIME_EXTENSIONS = {
   "image/avif": "avif",
@@ -198,6 +202,14 @@ function maxUploadBytes(env: Env): number {
     : DEFAULT_MAX_UPLOAD_BYTES;
 }
 
+export function workspaceLimits(env: Env): WorkspaceLimits {
+  return {
+    maxUploadBytes: maxUploadBytes(env),
+    maxTags: MAX_TAGS,
+    maxTagLength: MAX_TAG_LENGTH,
+  };
+}
+
 function publicUrl(publicBaseUrl: string, key: string): string | null {
   if (!publicBaseUrl) {
     return null;
@@ -274,7 +286,8 @@ export async function serveImage(
 
   const responseHeaders = new Headers(headers);
   responseHeaders.set("Content-Type", contentType);
-  responseHeaders.set("Cache-Control", "public, max-age=0, must-revalidate");
+  responseHeaders.set("Cache-Control", IMAGE_CACHE_CONTROL);
+  responseHeaders.set("Cloudflare-CDN-Cache-Control", IMAGE_CACHE_CONTROL);
   responseHeaders.set("Content-Security-Policy", "default-src 'none'; sandbox");
   responseHeaders.set("ETag", object.httpEtag);
   responseHeaders.set("X-Content-Type-Options", "nosniff");
@@ -369,7 +382,7 @@ export async function uploadImage(request: Request, env: Env, headers: Headers):
   await profile.bucket.put(key, value.stream(), {
     httpMetadata: {
       contentType: detectedMime,
-      cacheControl: "public, max-age=0, must-revalidate",
+      cacheControl: IMAGE_CACHE_CONTROL,
     },
     customMetadata: {
       originalName,

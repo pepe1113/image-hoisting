@@ -19,18 +19,21 @@ export interface ImageRecord {
 
 export type Theme = "system" | "light" | "dark";
 export type GalleryView = "grid" | "list";
-export type ResizePreset = "original" | "large" | "medium" | "custom";
+export type ProcessingPreset = "high" | "standard" | "fast" | "custom";
+export type SharpenLevel = "off" | "low" | "mid" | "high";
+export type OutputFormat = "original" | "webp";
 export type WorkspaceTab = "upload" | "history";
 
 export interface ProfilePreferences {
-  resizePreset: ResizePreset;
+  processingPreset: ProcessingPreset;
   maxDimension: number;
   quality: number;
+  sharpen: SharpenLevel;
+  outputFormat: OutputFormat;
   view: GalleryView;
 }
 
 export interface AppSettings {
-  version: 1;
   theme: Theme;
   activeProfileId: string;
   profiles: Record<string, ProfilePreferences>;
@@ -45,6 +48,7 @@ export interface PreparedImage {
   outputHeight: number | null;
   scalePercent: number;
   savedPercent: number;
+  processingMs: number;
   changed: boolean;
   warning: string;
 }

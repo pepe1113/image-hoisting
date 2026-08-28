@@ -8,7 +8,7 @@
     "dev": "pnpm run build && concurrently --kill-others \"vite --host 127.0.0.1\" \"pnpm run dev:worker\"",
     "dev:worker": "wrangler dev --port 8787 --var PUBLIC_BASE_URL:http://localhost:8787/images",
     "build": "vite build",
-    "deploy": "pnpm run build && wrangler deploy",
+    "deploy": "pnpm check && wrangler deploy",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

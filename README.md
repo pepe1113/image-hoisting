@@ -42,14 +42,14 @@ Drop or paste an image into the page, optimize it in the browser, upload it to C
 - **React & TypeScript:** Client app is built by React & TypeScript.
 - **Upload:** Drop one file or paste an image with `Command + V` or `Ctrl + V`.
 - **Preview:** Check the image before uploading it.
-- **Processing confirmation:** Compare dimensions, file sizes, resize percentage, and savings before choosing the original or processed image.
-- **Custom processing:** Use the original, 1920px/85%, 1280px/82%, or a custom long edge and WebP quality.
+- **Processing confirmation:** Compare dimensions, file sizes, resize percentage, savings, and processing time before uploading.
+- **Custom processing:** Use High, Standard, Fast, or custom long-edge, WebP quality, and sharpening settings.
+- **Responsive processing:** Resize, sharpen, and encode WebP in a Web Worker when supported, with a native Canvas fallback.
 - **Auto rename:** Enter a display filename or generate a random eight-character name.
 - **Upload result:** Show the uploaded image, Markdown, and image URL after a successful upload.
 - **Profiles:** Switch between R2 buckets and use the in-app setup helper to prepare a new server-side profile without exposing bucket credentials to the browser.
 - **Permanent admin key:** Protect every management API with a deployer-owned Bearer token saved from the key icon.
 - **Themes:** Use the system theme or choose light/dark mode.
-- **Settings transfer:** Export and import safe interface and processing preferences as JSON.
 - **Tags:** Add tags and search images by tag.
 - **Edit:** Change the display filename without changing the image URL.
 - **Delete:** Remove images from the library.
@@ -64,7 +64,7 @@ Drop or paste an image into the page, optimize it in the browser, upload it to C
 | React, TypeScript, Vite | Browser interface |
 | Vitest | Automated tests |
 
-The browser runtime dependencies are React and ReactDOM; image processing still uses native browser APIs.
+The browser runtime dependencies are React and ReactDOM; image processing uses native browser APIs without a separate image codec dependency.
 
 ## Supported Images
 
@@ -109,7 +109,7 @@ MAX_UPLOAD_BYTES=10485760
 
 Profile names, bindings, and public URLs are managed together in `vars.IMAGE_PROFILES` in `wrangler.jsonc`.
 
-On first visit, the app opens the admin-key popup automatically. Enter the same `ADMIN_TOKEN`. After verification, the key is stored in that browser's `localStorage` until you clear it from the key icon or clear the site's browser data. The key is not included in settings exports.
+On first visit, the app opens the admin-key popup automatically. Enter the same `ADMIN_TOKEN`. After verification, the key is stored in that browser's `localStorage` until you clear it from the key icon or clear the site's browser data.
 
 For production, store it as an encrypted Worker secret rather than a Wrangler variable:
 
@@ -201,7 +201,7 @@ Every `/api/*` route requires `Authorization: Bearer <ADMIN_TOKEN>`. Public imag
    - `vars.IMAGE_PROFILES[0].publicBaseUrl`
    - `vars.CORS_ORIGINS` when another browser origin needs API access
 
-3. Connect a custom domain or enable an `r2.dev` URL for the bucket, then save that URL as the profile's `publicBaseUrl`.
+3. Connect an R2 Custom Domain and save it as the profile's `publicBaseUrl`. Use `r2.dev` only for local or temporary testing; it is rate-limited and does not provide production cache controls. Image responses are stored at the edge but revalidated before reuse, so deleting an object does not leave a fresh long-lived copy behind.
 
 4. For the first deployment, create a unique production admin key and store it as a Worker secret:
 

@@ -60,6 +60,12 @@
     }
   }
 
+  .upload-processing {
+    .processing-options {
+      grid-template-columns: 1fr;
+    }
+  }
+
   .upload-result {
     padding: 18px;
   }
