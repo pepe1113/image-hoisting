@@ -20,12 +20,12 @@
 - [Tech Stack](#tech-stack)
 - [Supported Images](#supported-images)
 - [Run Locally](#run-locally)
-- [Configuration](#configuration)
-- [Profiles](#profiles)
+  - [Configuration](#configuration)
+  - [Deploy](#deploy)
 - [API](#api)
-- [Security and Privacy](#security-and-privacy)
+- [Multiple Profiles](#multiple-profiles)
 - [Commands](#commands)
-- [Deploy](#deploy)
+- [Security and Privacy](#security-and-privacy)
 - [License](#license)
 
 可自行 clone 到本機或 deploy 至雲端，將圖片拖曳或貼到頁面，在瀏覽器中提供選項 resize、圖片壓縮、優化成 webp 後上傳至 Cloudflare R2，可複製 Markdown 圖片語法或網址
@@ -89,7 +89,7 @@ pnpm dev
 
 開發期間 Wrangler 使用本機 R2 儲存空間，因此本機上傳不會改動正式環境的 bucket
 
-## Configuration
+### Configuration
 
 本機設定放在 `.dev.vars`：
 
@@ -109,66 +109,7 @@ Profile 名稱、binding 與公開網址統一在 `wrangler.jsonc` 的 `vars.IMA
 npx wrangler secret put ADMIN_TOKEN
 ```
 
-## Profiles
-
-每個 profile 對應一個 Cloudflare R2 bucket。切換 profile 後，上傳、歷史紀錄、搜尋與刪除都會依 bucket 分開
-
-1. 在 Cloudflare 建立 R2 bucket，並啟用公開網址。
-2. 在應用程式中選擇 **+**，填寫下列表格欄位。
-3. 複製 **R2 bucket binding**，直接貼到 `wrangler.jsonc` 的 `r2_buckets` 陣列中。
-4. 複製 **Profile entry**，直接貼到 `vars.IMAGE_PROFILES` 陣列中。
-5. 本機測試時重新啟動 Worker；正式環境執行 `pnpm deploy`，再重新整理應用程式。
-
-| 欄位 | 必填 | 填寫內容 | 範例 |
-| --- | --- | --- | --- |
-| **Profile name** | 是 | 顯示在 profile 切換選單中的名稱，最多 60 個字元。 | `Archive` |
-| **Profile ID** | 是 | 1–32 個小寫字母、數字或連字號組成的固定 ID。 | `archive` |
-| **R2 bucket name** | 是 | Cloudflare **R2 object storage → Overview** 顯示的完整 bucket 名稱。 | `archive-images` |
-| **Worker binding** | 是 | Worker 使用的唯一 JavaScript 變數名稱，建議使用大寫字母與底線。 | `ARCHIVE_IMAGES` |
-| **Public image URL** | 是 | **Bucket → Settings → Public access** 中已啟用的網址，不加結尾斜線。 | `https://archive-img.example.com` |
-
-預設 profile 保留 `"id": "default"`。兩個複製欄位都已包含尾逗號，可直接貼入對應陣列；`r2_buckets` 與 `IMAGE_PROFILES` 的 binding 名稱必須完全一致。
-
-## API
-
-| 方法 | 路徑 | 用途 |
-| --- | --- | --- |
-| `GET` | `/health` | 檢查 Worker 是否正常運作 |
-| `GET` | `/api/auth/verify` | 驗證已儲存的管理金鑰 |
-| `GET` | `/api/profiles` | 列出安全的 profile ID 與名稱 |
-| `GET` | `/images/:key` | 取得圖片 |
-| `GET` | `/profile-images/:profile/:key` | 從其他 profile 取得圖片 |
-| `POST` | `/api/images?profile=...` | 上傳圖片 |
-| `GET` | `/api/images?profile=...` | 列出圖片並依標籤篩選 |
-| `PATCH` | `/api/images?profile=...&key=...` | 更新顯示檔名或標籤 |
-| `DELETE` | `/api/images?profile=...&key=...` | 刪除圖片 |
-
-`profile` query 可省略；省略時使用預設 profile。
-
-所有 `/api/*` 路徑都需要 `Authorization: Bearer <ADMIN_TOKEN>`。`/images/*` 與 `/profile-images/*` 公開圖片路徑不需要驗證。
-
-## Security and Privacy
-
-- 上傳圖片是公開的。隨機圖片 ID 可降低意外被發現的機率，但不是存取控制。
-- 使用只允許此 Worker 寫入的專用 R2 bucket。公開圖片回應會拒絕非圖片 Content-Type。
-- 管理金鑰會儲存在目前瀏覽器的 `localStorage`。請使用可信任的瀏覽器 profile；若可能外洩，請更換 Worker secret。
-- 不要提交 `.dev.vars`、`.env`、`wrangler.jsonc` 或 `.wrangler/`。`.wrangler/` 可能包含本機 R2 物件與 metadata。
-- 請透過 Git 分享專案，不要直接壓縮整個工作目錄，避免包含已忽略的本機檔案。
-
-## Commands
-
-| 指令 | 用途 |
-| --- | --- |
-| `pnpm dev` | 啟動 Vite 與本機 Worker |
-| `pnpm dev:worker` | 只啟動本機 Worker |
-| `pnpm build` | 建置 React 正式環境資源 |
-| `pnpm test` | 執行測試 |
-| `pnpm lint` | 檢查程式碼格式與規則 |
-| `pnpm typecheck` | 檢查 TypeScript 型別 |
-| `pnpm check` | 執行 lint、型別檢查、測試與正式建置 |
-| `pnpm deploy` | 部署 Worker 至 Cloudflare |
-
-## Deploy
+### Deploy
 
 1. 登入 Cloudflare 並建立 R2 bucket：
 
@@ -208,6 +149,68 @@ npx wrangler secret put ADMIN_TOKEN
 
 只有在 `secrets.required` 中宣告 secret 時，Wrangler 才會在部署時強制檢查。此範例未啟用該選用驗證，以相容仍使用舊 `AUTH_TOKEN` 的部署。新部署只需設定一次 `ADMIN_TOKEN`；Cloudflare 會在後續 `wrangler deploy` 時保留 secret，只有更換或重新建立時需要再次輸入。若兩種 token 都沒有設定，Worker 仍可部署，但管理 API 會回傳 `AUTH_NOT_CONFIGURED`。詳情請參考 Cloudflare 的 [Secrets 文件](https://developers.cloudflare.com/workers/configuration/secrets/)。
 
+
+## API
+
+| 方法 | 路徑 | 用途 |
+| --- | --- | --- |
+| `GET` | `/health` | 檢查 Worker 是否正常運作 |
+| `GET` | `/api/auth/verify` | 驗證已儲存的管理金鑰 |
+| `GET` | `/api/profiles` | 列出安全的 profile ID 與名稱 |
+| `GET` | `/images/:key` | 取得圖片 |
+| `GET` | `/profile-images/:profile/:key` | 從其他 profile 取得圖片 |
+| `POST` | `/api/images?profile=...` | 上傳圖片 |
+| `GET` | `/api/images?profile=...` | 列出圖片並依標籤篩選 |
+| `PATCH` | `/api/images?profile=...&key=...` | 更新顯示檔名或標籤 |
+| `DELETE` | `/api/images?profile=...&key=...` | 刪除圖片 |
+
+`profile` query 可省略；省略時使用預設 profile。
+
+所有 `/api/*` 路徑都需要 `Authorization: Bearer <ADMIN_TOKEN>`。`/images/*` 與 `/profile-images/*` 公開圖片路徑不需要驗證。
+
+
+## Multiple Profiles
+
+每個 profile 對應一個 Cloudflare R2 bucket。切換 profile 後，上傳、歷史紀錄、搜尋與刪除都會依 bucket 分開
+
+1. 在 Cloudflare 建立 R2 bucket，並啟用公開網址。
+2. 在應用程式中選擇 **+**，填寫下列表格欄位。
+3. 複製 **R2 bucket binding**，直接貼到 `wrangler.jsonc` 的 `r2_buckets` 陣列中。
+4. 複製 **Profile entry**，直接貼到 `vars.IMAGE_PROFILES` 陣列中。
+5. 本機測試時重新啟動 Worker；正式環境執行 `pnpm deploy`，再重新整理應用程式。
+
+| 欄位 | 必填 | 填寫內容 | 範例 |
+| --- | --- | --- | --- |
+| **Profile name** | 是 | 顯示在 profile 切換選單中的名稱，最多 60 個字元。 | `Archive` |
+| **Profile ID** | 是 | 1–32 個小寫字母、數字或連字號組成的固定 ID。 | `archive` |
+| **R2 bucket name** | 是 | Cloudflare **R2 object storage → Overview** 顯示的完整 bucket 名稱。 | `archive-images` |
+| **Worker binding** | 是 | Worker 使用的唯一 JavaScript 變數名稱，建議使用大寫字母與底線。 | `ARCHIVE_IMAGES` |
+| **Public image URL** | 是 | **Bucket → Settings → Public access** 中已啟用的網址，不加結尾斜線。 | `https://archive-img.example.com` |
+
+預設 profile 保留 `"id": "default"`。兩個複製欄位都已包含尾逗號，可直接貼入對應陣列；`r2_buckets` 與 `IMAGE_PROFILES` 的 binding 名稱必須完全一致。
+
+## Commands
+
+| 指令 | 用途 |
+| --- | --- |
+| `pnpm dev` | 啟動 Vite 與本機 Worker |
+| `pnpm dev:worker` | 只啟動本機 Worker |
+| `pnpm build` | 建置 React 正式環境資源 |
+| `pnpm test` | 執行測試 |
+| `pnpm lint` | 檢查程式碼格式與規則 |
+| `pnpm typecheck` | 檢查 TypeScript 型別 |
+| `pnpm check` | 執行 lint、型別檢查、測試與正式建置 |
+| `pnpm deploy` | 部署 Worker 至 Cloudflare |
+
+
+## Security and Privacy
+
+- 上傳圖片是公開的。隨機圖片 ID 可降低意外被發現的機率，但不是存取控制。
+- 使用只允許此 Worker 寫入的專用 R2 bucket。公開圖片回應會拒絕非圖片 Content-Type。
+- 管理金鑰會儲存在目前瀏覽器的 `localStorage`。請使用可信任的瀏覽器 profile；若可能外洩，請更換 Worker secret。
+- 不要提交 `.dev.vars`、`.env`、`wrangler.jsonc` 或 `.wrangler/`。`.wrangler/` 可能包含本機 R2 物件與 metadata。
+- 請透過 Git 分享專案，不要直接壓縮整個工作目錄，避免包含已忽略的本機檔案。
+  
 ## License
 
 MIT。請參考 [LICENSE](LICENSE)。
