@@ -12,7 +12,9 @@
 
 一個適合部落格、技術文件與 Markdown 文章使用的小型自架圖片託管工具（圖床）
 
+[線上 Demo](https://image.demo.peiwang.dev/)
 
+> **注意：** 此 Demo 僅供展示，上傳的圖片會在 7 天內刪除
 
 
 

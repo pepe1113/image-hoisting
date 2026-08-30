@@ -16,6 +16,10 @@
 
 A small self-hosted image upload tool for blogs, documentation, and Markdown posts.
 
+[Live Demo](https://image.demo.peiwang.dev/)
+
+> **Note:** The demo is for showcase purposes only. Uploaded images are deleted within 7 days.
+
 
 - [Features](#features)
 - [Tech Stack](#tech-stack)
