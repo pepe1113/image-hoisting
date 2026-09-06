@@ -70,6 +70,8 @@ Drop or paste an image into the page, optimize it in the browser, upload it to C
 
 The browser runtime dependencies are React and ReactDOM; image processing uses native browser APIs without a separate image codec dependency.
 
+[Image processing benchmark](docs/image-processing-benchmark.md)
+
 ## Supported Images
 
 The app accepts JPEG, PNG, GIF, WebP, and AVIF files. The default upload limit is 10 MiB.

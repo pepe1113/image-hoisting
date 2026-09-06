@@ -64,6 +64,8 @@
 
 瀏覽器端執行依賴為 React 與 ReactDOM；圖片處理使用瀏覽器原生 API，不另外加入圖片 codec dependency
 
+[圖片處理效能測試](docs/image-processing-benchmark.md)
+
 ## Supported Images
 
 支援 JPEG、PNG、GIF、WebP 與 AVIF，預設上傳上限為 10 MiB
