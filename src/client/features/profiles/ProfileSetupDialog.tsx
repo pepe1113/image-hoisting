@@ -36,9 +36,7 @@ export function ProfileSetupDialog({
         Create safe deployment values for another bucket. R2 access keys never
         enter this browser.
       </p>
-      <form
-        onSubmit={(event) => event.preventDefault()}
-      >
+      <form onSubmit={(event) => event.preventDefault()}>
         <div className="profile-setup-grid">
           <label className="dialog-field">
             <span>Profile name</span>
@@ -107,7 +105,7 @@ export function ProfileSetupDialog({
                   onCopy(bucketBinding, "R2 bucket binding copied");
                 }}
               >
-                <CopyIcon className="header-icon" />
+                <CopyIcon />
               </button>
             </div>
             <pre>
@@ -130,7 +128,7 @@ export function ProfileSetupDialog({
                   onCopy(profileEntry, "Profile entry copied");
                 }}
               >
-                <CopyIcon className="header-icon" />
+                <CopyIcon />
               </button>
             </div>
             <pre>
@@ -143,7 +141,11 @@ export function ProfileSetupDialog({
           the matching arrays in <code>wrangler.jsonc</code>.
         </p>
         <div className="dialog-actions">
-          <button className="button button-primary" type="button" onClick={onClose}>
+          <button
+            className="button button-primary"
+            type="button"
+            onClick={onClose}
+          >
             Done
           </button>
         </div>

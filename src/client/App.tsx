@@ -68,18 +68,6 @@ export function App() {
         onOpenAdminKey={() => access.setAdminDialogOpen(true)}
       />
 
-      <section className="workspace-heading" aria-labelledby="page-title">
-        <mark className="eyebrow">PERSONAL IMAGE TOOL</mark>
-        <h1 id="page-title">Upload images.</h1>
-        <p>
-          Drop, paste, resize, and upload to{" "}
-          <mark className="active-profile-name" key={settings.activeProfileId}>
-            {access.activeProfile?.label ?? "your R2 bucket"}
-          </mark>
-          .
-        </p>
-      </section>
-
       {notifications.notice ? (
         <div className="notice" role="alert">
           {notifications.notice}
@@ -93,6 +81,8 @@ export function App() {
           profileLabel={profileLabel}
           limits={access.limits}
           onPreferences={settings.updatePreferences}
+          profileId={settings.activeProfileId}
+          activeProfileLabel={access.activeProfile?.label ?? "your R2 bucket"}
           onCopy={notifications.copyText}
         />
       ) : (
@@ -107,14 +97,23 @@ export function App() {
 
       <footer className="app-footer">
         <span>
-          Self-hosted image workspace on{" "}
+          Made by{" "}
+          <a
+            href="https://github.com/pepe1113"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            @Pei Wang
+          </a>{" "}
+          , Self-hosted image workspace on{" "}
           <a
             href="https://github.com/pepe1113/image-hoisting"
             target="_blank"
             rel="noopener noreferrer"
           >
             Github
-          </a>
+          </a>{" "}
+          © 2026
         </span>
         <span>Cloudflare R2 + React</span>
       </footer>

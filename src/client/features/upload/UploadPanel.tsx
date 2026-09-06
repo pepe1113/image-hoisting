@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { TagEditor } from "../../components/TagEditor";
 import { Tooltip } from "../../components/Tooltip";
-import { calculateTargetSize, formatBytes, PROCESSING_PRESETS } from "../../core";
+import {
+  calculateTargetSize,
+  formatBytes,
+  PROCESSING_PRESETS,
+} from "../../core";
 import type {
   OutputFormat,
   ProcessingPreset,
@@ -20,6 +24,8 @@ interface UploadPanelProps {
   limits: WorkspaceLimits;
   onPreferences: (preferences: ProfilePreferences) => void;
   onCopy: (value: string, message: string) => void;
+  profileId: string;
+  activeProfileLabel: string;
 }
 
 interface MeasuredImage {
@@ -35,8 +41,12 @@ export function UploadPanel({
   limits,
   onPreferences,
   onCopy,
+  profileId,
+  activeProfileLabel,
 }: UploadPanelProps) {
-  const [measuredImage, setMeasuredImage] = useState<MeasuredImage | null>(null);
+  const [measuredImage, setMeasuredImage] = useState<MeasuredImage | null>(
+    null,
+  );
   const {
     selectedFile,
     displayFilename,
@@ -58,11 +68,11 @@ export function UploadPanel({
     handlePrepare,
     startUpload,
   } = upload;
-  const sourceDimensions = measuredImage?.file === selectedFile ? measuredImage : null;
+  const sourceDimensions =
+    measuredImage?.file === selectedFile ? measuredImage : null;
   const isGif = selectedFile?.type === "image/gif";
   const effectiveOutputFormat = isGif ? "original" : preferences.outputFormat;
-  const processingDisabled =
-    isGif || effectiveOutputFormat === "original";
+  const processingDisabled = isGif || effectiveOutputFormat === "original";
   const outputDimensions = sourceDimensions
     ? processingDisabled
       ? { width: sourceDimensions.width, height: sourceDimensions.height }
@@ -75,7 +85,11 @@ export function UploadPanel({
 
   function setPreset(preset: ProcessingPreset): void {
     const presetValues = preset === "custom" ? {} : PROCESSING_PRESETS[preset];
-    onPreferences({ ...preferences, ...presetValues, processingPreset: preset });
+    onPreferences({
+      ...preferences,
+      ...presetValues,
+      processingPreset: preset,
+    });
   }
 
   function customize(changes: Partial<ProfilePreferences>): void {
@@ -85,6 +99,17 @@ export function UploadPanel({
   return (
     <>
       <section className="upload-section tab-panel" aria-label="Upload images">
+        <section className="workspace-heading" aria-labelledby="page-title">
+          <mark className="eyebrow">PERSONAL IMAGE TOOL</mark>
+          <h1 id="page-title">Upload images.</h1>
+          <p>
+            Drop, paste, resize, and upload to{" "}
+            <mark className="active-profile-name" key={profileId}>
+              {activeProfileLabel}
+            </mark>
+            .
+          </p>
+        </section>
         <form onSubmit={handlePrepare}>
           <input
             id="file-input"
@@ -217,10 +242,14 @@ export function UploadPanel({
                       id="processing-preset"
                       value={preferences.processingPreset}
                       disabled={processingDisabled}
-                      onChange={(event) => setPreset(event.target.value as ProcessingPreset)}
+                      onChange={(event) =>
+                        setPreset(event.target.value as ProcessingPreset)
+                      }
                     >
                       <option value="high">High · 2048 / 85 / Mid</option>
-                      <option value="standard">Standard · 1600 / 80 / Low</option>
+                      <option value="standard">
+                        Standard · 1600 / 80 / Low
+                      </option>
                       <option value="fast">Fast · 1000 / 70 / Off</option>
                       <option value="custom">Custom</option>
                     </select>
@@ -228,7 +257,9 @@ export function UploadPanel({
                   <div className="processing-sliders">
                     <div className="processing-slider">
                       <span className="processing-control-label">
-                        <label htmlFor="maximum-long-edge">Maximum long edge</label>
+                        <label htmlFor="maximum-long-edge">
+                          Maximum long edge
+                        </label>
                         <Tooltip content="Limits the longest edge and reduces both dimensions proportionally. Smaller images are not enlarged." />
                         <output>{preferences.maxDimension}px</output>
                       </span>
@@ -281,7 +312,11 @@ export function UploadPanel({
                         id="sharpen-level"
                         value={preferences.sharpen}
                         disabled={processingDisabled}
-                        onChange={(event) => customize({ sharpen: event.target.value as SharpenLevel })}
+                        onChange={(event) =>
+                          customize({
+                            sharpen: event.target.value as SharpenLevel,
+                          })
+                        }
                       >
                         <option value="off">Off</option>
                         <option value="low">Low</option>
@@ -294,19 +329,31 @@ export function UploadPanel({
                         <span id="output-format-label">Format</span>
                         <Tooltip content="WebP is often smaller. Original keeps the file byte-for-byte and skips resizing and sharpening." />
                       </span>
-                      <div className="format-toggle" role="group" aria-labelledby="output-format-label">
-                        {(["original", "webp"] as const).map((format: OutputFormat) => (
-                          <button
-                            type="button"
-                            className={effectiveOutputFormat === format ? "is-active" : ""}
-                            aria-pressed={effectiveOutputFormat === format}
-                            disabled={isGif}
-                            key={format}
-                            onClick={() => customize({ outputFormat: format })}
-                          >
-                            {format === "original" ? "Original" : "WebP"}
-                          </button>
-                        ))}
+                      <div
+                        className="format-toggle"
+                        role="group"
+                        aria-labelledby="output-format-label"
+                      >
+                        {(["original", "webp"] as const).map(
+                          (format: OutputFormat) => (
+                            <button
+                              type="button"
+                              className={
+                                effectiveOutputFormat === format
+                                  ? "is-active"
+                                  : ""
+                              }
+                              aria-pressed={effectiveOutputFormat === format}
+                              disabled={isGif}
+                              key={format}
+                              onClick={() =>
+                                customize({ outputFormat: format })
+                              }
+                            >
+                              {format === "original" ? "Original" : "WebP"}
+                            </button>
+                          ),
+                        )}
                       </div>
                     </div>
                   </div>
