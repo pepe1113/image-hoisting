@@ -59,13 +59,13 @@ export function formatBytes(bytes: number): string {
   return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)} ${units[index]}`;
 }
 
-export function formatDate(value: string, locale = "en-US"): string {
+export function formatDate(value: string, locale = "zh"): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Unknown date";
   return new Intl.DateTimeFormat(locale, {
     year: "numeric",
-    month: "short",
-    day: "numeric",
+    month: '2-digit',
+    day: '2-digit',
   }).format(date);
 }
 

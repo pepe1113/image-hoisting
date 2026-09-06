@@ -4,6 +4,7 @@ import {
   createShortId,
   detectImageMime,
   normalizeFilename,
+  normalizeFolder,
   normalizeTags,
   sanitizeFileBaseName,
 } from "../src/images";
@@ -180,6 +181,9 @@ describe("filename and signature safety", () => {
     expect(normalizeFilename("   ")).toBeNull();
     expect(normalizeTags([" Blog ", "作品", "blog"])).toEqual(["Blog", "作品"]);
     expect(normalizeTags([""])).toBeNull();
+    expect(normalizeFolder("  作品  ")).toBe("作品");
+    expect(normalizeFolder("nested/folder")).toBeNull();
+    expect(normalizeFolder("x".repeat(81))).toBeNull();
   });
 });
 
@@ -534,6 +538,57 @@ describe("image API", () => {
     });
   });
 
+  it("counts the whole Profile across R2 pages and clamps filtered pagination after deletion", async () => {
+    const bucket = new FakeR2Bucket();
+    for (let index = 0; index < 1002; index += 1) {
+      await bucket.put(`photo/${index}`, new Uint8Array(10), {
+        httpMetadata: { contentType: "image/png" },
+        customMetadata: { tags: JSON.stringify(index < 3 ? ["featured"] : []) },
+      });
+    }
+    const env = createProfileEnv(bucket);
+    const request = () => handleRequest(new Request("https://api.example.com/api/images?tag=featured&limit=2&cursor=2"), env);
+    expect(await (await request()).json()).toMatchObject({
+      summary: { total: 1002, totalBytes: 10020 },
+      pagination: { offset: 2, total: 3, totalBytes: 30, cursor: null },
+    });
+    await handleRequest(new Request("https://api.example.com/api/images?key=photo/2", { method: "DELETE" }), env);
+    expect(await (await request()).json()).toMatchObject({
+      summary: { total: 1001, totalBytes: 10010 },
+      pagination: { offset: 0, total: 2, totalBytes: 20, cursor: null },
+    });
+    const empty = await handleRequest(new Request("https://api.example.com/api/images?tag=missing&cursor=500"), env);
+    expect(await empty.json()).toMatchObject({ data: [], pagination: { offset: 0, total: 0 }, summary: { total: 1001 } });
+    const archive = await handleRequest(new Request("https://api.example.com/api/images?profile=archive"), env);
+    expect(await archive.json()).toMatchObject({ summary: { total: 0, totalBytes: 0 } });
+    const prefix = await handleRequest(new Request("https://api.example.com/api/images?prefix=missing"), env);
+    expect(await prefix.json()).toMatchObject({ data: [], summary: { total: 1001 } });
+  });
+
+  it("persists dimensions parsed from the uploaded bytes and keeps legacy dimensions unknown", async () => {
+    const bucket = new FakeR2Bucket();
+    const env = createEnv(bucket);
+    const form = new FormData();
+    const bytes = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZ1sAAAAASUVORK5CYII="), (char) => char.charCodeAt(0));
+    form.set("file", pngFile("pixel.png", bytes));
+    form.set("width", "9999");
+    form.set("height", "9999");
+    const response = await handleRequest(new Request("https://api.example.com/api/images", { method: "POST", body: form }), env);
+    const result = await response.json() as { data: { key: string; width: number; height: number } };
+    expect(result.data).toMatchObject({ width: 1, height: 1 });
+    expect(bucket.objects.get(result.data.key)?.customMetadata).toMatchObject({ width: "1", height: "1" });
+    const update = await handleRequest(new Request(`https://api.example.com/api/images?key=${result.data.key}`, { method: "PATCH", body: JSON.stringify({ tags: ["test"] }) }), env);
+    expect(await update.json()).toMatchObject({ data: { width: 1, height: 1 } });
+    await bucket.put("legacy", bytes, { httpMetadata: { contentType: "image/png" } });
+    const get = vi.spyOn(bucket, "get");
+    const list = await handleRequest(new Request("https://api.example.com/api/images"), env);
+    expect((await list.json() as { data: unknown[] }).data).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "legacy", width: null, height: null }),
+      expect.objectContaining({ key: result.data.key, width: 1, height: 1 }),
+    ]));
+    expect(get).not.toHaveBeenCalled();
+  });
+
   it("updates display filename and tags without changing the key or file bytes", async () => {
     const bucket = new FakeR2Bucket();
     const env = createEnv(bucket);
@@ -583,6 +638,54 @@ describe("image API", () => {
     expect(await newTag.json()).toMatchObject({
       data: [{ key: uploaded.data.key, filename: "首頁封面.png" }],
     });
+  });
+
+  it("adds tags without losing existing metadata, supports idempotent retry and rejects overflow", async () => {
+    const bucket = new FakeR2Bucket();
+    const env = createEnv(bucket);
+    const originalTags = ["Blog", ...Array.from({ length: 18 }, (_, index) => `tag-${index}`)];
+    await bucket.put("image", new Uint8Array([1, 2]), { customMetadata: { tags: JSON.stringify(originalTags), width: "640", height: "480", uploadedAt: "2026-01-01T00:00:00.000Z" } });
+    const patch = (body: unknown) => handleRequest(new Request("https://api.example.com/api/images?key=image", { method: "PATCH", body: JSON.stringify(body) }), env);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const response = await patch({ addTags: ["ｂｌｏｇ", " New "] });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ data: { tags: [...originalTags, "New"], width: 640, height: 480, uploadedAt: "2026-01-01T00:00:00.000Z" } });
+    }
+    expect(await (await patch({ addTags: ["overflow"] })).json()).toMatchObject({ error: { code: "INVALID_TAGS" } });
+    expect(await (await patch({ addTags: [], tags: [] })).json()).toMatchObject({ error: { code: "INVALID_METADATA" } });
+    expect((await patch({ addTags: [42] })).status).toBe(400);
+    expect((await patch({ addTags: ["x".repeat(41)] })).status).toBe(400);
+    expect(bucket.objects.get("image")?.body).toEqual(new Uint8Array([1, 2]));
+    expect(JSON.parse(bucket.objects.get("image")!.customMetadata!.tags!)).toHaveLength(20);
+    const anonymous = await handleWorkerRequest(new Request("https://api.example.com/api/images?key=image", { method: "PATCH", body: JSON.stringify({ addTags: ["new"] }) }), env);
+    expect(anonymous.status).toBe(401);
+  });
+
+  it("moves images between logical folders without changing keys, URLs or bytes", async () => {
+    const bucket = new FakeR2Bucket();
+    const archive = new FakeR2Bucket();
+    const env = createProfileEnv(bucket, archive);
+    await bucket.put("one", new Uint8Array([1]), { customMetadata: { tags: JSON.stringify(["Blog"]) } });
+    await bucket.put("two", new Uint8Array([2]), { customMetadata: { tags: JSON.stringify(["Blog"]), folder: "Archive" } });
+    await bucket.put("three", new Uint8Array([3]), { customMetadata: { folder: "Portfolio" } });
+    const move = (key: string, folder: unknown) => handleRequest(new Request(`https://api.example.com/api/images?key=${key}`, { method: "PATCH", body: JSON.stringify({ folder }) }), env);
+    const moved = await move("one", "  Portfolio  ");
+    expect(await moved.json()).toMatchObject({ data: { key: "one", url: "https://img.example.com/one", folder: "Portfolio" } });
+    expect(bucket.objects.get("one")?.body).toEqual(new Uint8Array([1]));
+    const filtered = await handleRequest(new Request("https://api.example.com/api/images?folder=Portfolio&tag=blog"), env);
+    expect(await filtered.json()).toMatchObject({
+      data: [{ key: "one", folder: "Portfolio" }],
+      summary: { total: 3, folders: ["Archive", "Portfolio"] },
+      pagination: { total: 1 },
+    });
+    await move("one", "");
+    expect(bucket.objects.get("one")?.customMetadata?.folder).toBeUndefined();
+    const unfiled = await handleRequest(new Request("https://api.example.com/api/images?folder="), env);
+    expect(await unfiled.json()).toMatchObject({ data: [{ key: "one", folder: null }] });
+    expect((await move("one", "bad/name")).status).toBe(400);
+    expect((await move("one", 42)).status).toBe(400);
+    const archiveList = await handleRequest(new Request("https://api.example.com/api/images?profile=archive&folder=Portfolio"), env);
+    expect(await archiveList.json()).toMatchObject({ data: [], summary: { folders: [] } });
   });
 
   it("rejects invalid metadata updates", async () => {

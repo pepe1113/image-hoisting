@@ -1,5 +1,5 @@
 import { parseTagInput } from "./core";
-import type { ImageProfile, ImageRecord } from "./types";
+import type { ImageList, ImagePatch, ImageProfile, ImageRecord } from "./types";
 import {
   DEFAULT_WORKSPACE_LIMITS,
   type WorkspaceLimits,
@@ -90,13 +90,15 @@ export async function fetchImages(
   token: string,
   profileId: string,
   search: string,
+  folder: string | null,
   cursor?: string | null,
   signal?: AbortSignal,
-): Promise<{ data: ImageRecord[]; pagination: { cursor: string | null; truncated: boolean } }> {
+): Promise<ImageList> {
   const url = new URL(profileUrl("/api/images", profileId), window.location.origin);
   url.searchParams.set("limit", "50");
   if (cursor) url.searchParams.set("cursor", cursor);
   for (const tag of parseTagInput(search)) url.searchParams.append("tag", tag);
+  if (folder !== null) url.searchParams.set("folder", folder);
   return apiFetch(token, `${url.pathname}${url.search}`, signal ? { signal } : undefined);
 }
 
@@ -142,15 +144,14 @@ export async function updateImage(
   token: string,
   profileId: string,
   key: string,
-  filename: string,
-  tags: string[],
+  changes: ImagePatch,
 ): Promise<ImageRecord> {
   const url = new URL(profileUrl("/api/images", profileId), window.location.origin);
   url.searchParams.set("key", key);
   const payload = await apiFetch<{ data: ImageRecord }>(token, `${url.pathname}${url.search}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ filename, tags }),
+    body: JSON.stringify(changes),
   });
   return payload.data;
 }

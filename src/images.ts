@@ -1,5 +1,6 @@
 import { error, json } from "./http";
 import { requestProfileId, resolveImageProfile } from "./profiles";
+import { readImageDimensions } from "./image-dimensions";
 import {
   DEFAULT_MAX_UPLOAD_BYTES,
   MAX_TAG_LENGTH,
@@ -12,6 +13,7 @@ const DEFAULT_LIST_LIMIT = 50;
 const MAX_LIST_LIMIT = 100;
 const R2_SCAN_LIMIT = 1000;
 const MAX_FILENAME_LENGTH = 180;
+const MAX_FOLDER_LENGTH = 80;
 const SHORT_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 const SHORT_ID_BYTES = 6;
 const SHORT_ID_ATTEMPTS = 5;
@@ -38,6 +40,9 @@ interface ImageData {
   filename: string;
   tags: string[];
   uploadedAt: string;
+  width: number | null;
+  height: number | null;
+  folder: string | null;
 }
 
 function isAllowedImageMime(value: string): value is AllowedImageMime {
@@ -133,6 +138,12 @@ export function normalizeTags(values: string[]): string[] | null {
   return tags;
 }
 
+export function normalizeFolder(value: string): string | null {
+  const folder = value.normalize("NFKC").trim();
+  if (folder.length > MAX_FOLDER_LENGTH || folder.includes("/") || hasControlCharacter(folder)) return null;
+  return folder;
+}
+
 function storedTags(value: string | undefined): string[] {
   if (!value) return [];
   try {
@@ -151,6 +162,9 @@ function imageData(object: R2Object, profile: ResolvedImageProfile): ImageData {
     object.key.split("/").at(-1) ??
     object.key;
 
+  const width = Number(object.customMetadata?.width);
+  const height = Number(object.customMetadata?.height);
+  const hasDimensions = [width, height].every((value) => Number.isInteger(value) && value > 0 && value <= 0x7fffffff);
   return {
     profileId: profile.id,
     key: object.key,
@@ -162,6 +176,9 @@ function imageData(object: R2Object, profile: ResolvedImageProfile): ImageData {
     filename,
     tags: storedTags(object.customMetadata?.tags),
     uploadedAt: object.customMetadata?.uploadedAt ?? object.uploaded.toISOString(),
+    width: hasDimensions ? width : null,
+    height: hasDimensions ? height : null,
+    folder: normalizeFolder(object.customMetadata?.folder ?? "") || null,
   };
 }
 
@@ -379,6 +396,8 @@ export async function uploadImage(request: Request, env: Env, headers: Headers):
     );
   }
 
+  // ponytail: inspect at most 256 KiB; return unknown if metadata is later, expand only when needed.
+  const dimensions = readImageDimensions(new Uint8Array(await value.slice(0, 256 * 1024).arrayBuffer()), detectedMime);
   await profile.bucket.put(key, value.stream(), {
     httpMetadata: {
       contentType: detectedMime,
@@ -389,6 +408,7 @@ export async function uploadImage(request: Request, env: Env, headers: Headers):
       filename: originalName,
       tags: JSON.stringify(tags),
       uploadedAt: uploadedAt.toISOString(),
+      ...(dimensions ? { width: String(dimensions.width), height: String(dimensions.height) } : {}),
     },
   });
 
@@ -404,6 +424,9 @@ export async function uploadImage(request: Request, env: Env, headers: Headers):
         filename: originalName,
         tags,
         uploadedAt: uploadedAt.toISOString(),
+        width: dimensions?.width ?? null,
+        height: dimensions?.height ?? null,
+        folder: null,
       },
     },
     201,
@@ -429,6 +452,9 @@ export async function listImages(request: Request, env: Env, headers: Headers): 
   const offset = cursor === null ? 0 : Number(cursor);
   const prefix = url.searchParams.get("prefix") || undefined;
   const requestedTags = normalizeTags(url.searchParams.getAll("tag"));
+  const requestedFolder = url.searchParams.has("folder")
+    ? normalizeFolder(url.searchParams.get("folder") ?? "")
+    : undefined;
 
   if (prefix && (!validKey(prefix) || prefix.length > 256)) {
     return error("INVALID_PREFIX", "The list prefix is invalid", 400, headers);
@@ -444,6 +470,9 @@ export async function listImages(request: Request, env: Env, headers: Headers): 
       headers,
     );
   }
+  if (requestedFolder === null) {
+    return error("INVALID_FOLDER", `Folder names must be at most ${MAX_FOLDER_LENGTH} characters and cannot contain slashes`, 400, headers);
+  }
 
   const images: ImageData[] = [];
   let r2Cursor: string | undefined;
@@ -452,14 +481,9 @@ export async function listImages(request: Request, env: Env, headers: Headers): 
     const result = await profile.bucket.list({
       limit: R2_SCAN_LIMIT,
       ...(r2Cursor ? { cursor: r2Cursor } : {}),
-      ...(prefix ? { prefix } : {}),
       include: ["httpMetadata", "customMetadata"],
     });
-    images.push(
-      ...result.objects
-        .map((object) => imageData(object, profile))
-        .filter((image) => matchesTags(image, requestedTags)),
-    );
+    images.push(...result.objects.map((object) => imageData(object, profile)));
     truncated = result.truncated;
     r2Cursor = result.truncated ? result.cursor : undefined;
   } while (truncated);
@@ -469,15 +493,29 @@ export async function listImages(request: Request, env: Env, headers: Headers): 
     return dateDifference || left.key.localeCompare(right.key);
   });
 
-  const page = images.slice(offset, offset + limit);
-  const nextOffset = offset + page.length;
-  const hasMore = nextOffset < images.length;
+  const filtered = images.filter((image) =>
+    (!prefix || image.key.startsWith(prefix)) &&
+    (requestedFolder === undefined || (image.folder ?? "") === requestedFolder) &&
+    matchesTags(image, requestedTags),
+  );
+  const pageOffset = offset < filtered.length ? offset : Math.max(0, Math.ceil(filtered.length / limit) - 1) * limit;
+  const page = filtered.slice(pageOffset, pageOffset + limit);
+  const nextOffset = pageOffset + page.length;
+  const hasMore = nextOffset < filtered.length;
 
   return json(
     {
       data: page,
+      summary: {
+        total: images.length,
+        totalBytes: images.reduce((total, image) => total + image.size, 0),
+        folders: [...new Set(images.flatMap((image) => image.folder ? [image.folder] : []))].sort((left, right) => left.localeCompare(right)),
+      },
       pagination: {
         limit,
+        offset: pageOffset,
+        total: filtered.length,
+        totalBytes: filtered.reduce((total, image) => total + image.size, 0),
         truncated: hasMore,
         cursor: hasMore ? String(nextOffset) : null,
       },
@@ -510,8 +548,10 @@ export async function updateImage(request: Request, env: Env, headers: Headers):
   const metadata = payload as Record<string, unknown>;
   const hasFilename = Object.prototype.hasOwnProperty.call(metadata, "filename");
   const hasTags = Object.prototype.hasOwnProperty.call(metadata, "tags");
-  if (!hasFilename && !hasTags) {
-    return error("INVALID_METADATA", "Expected filename or tags", 400, headers);
+  const hasAddTags = Object.prototype.hasOwnProperty.call(metadata, "addTags");
+  const hasFolder = Object.prototype.hasOwnProperty.call(metadata, "folder");
+  if ((!hasFilename && !hasTags && !hasAddTags && !hasFolder) || (hasTags && hasAddTags)) {
+    return error("INVALID_METADATA", "Provide filename, tags, addTags or folder; tags and addTags cannot be combined", 400, headers);
   }
 
   const filename = hasFilename && typeof metadata.filename === "string"
@@ -539,16 +579,39 @@ export async function updateImage(request: Request, env: Env, headers: Headers):
     );
   }
 
+  const addTags = hasAddTags && Array.isArray(metadata.addTags) && metadata.addTags.every((tag) => typeof tag === "string")
+    ? normalizeTags(metadata.addTags) : null;
+  if (hasAddTags && (!addTags || addTags.length === 0)) {
+    return error("INVALID_TAGS", `Provide 1 to ${MAX_TAGS} tags, each at most ${MAX_TAG_LENGTH} characters`, 400, headers);
+  }
+  const folder = hasFolder && typeof metadata.folder === "string" ? normalizeFolder(metadata.folder) : null;
+  if (hasFolder && folder === null) {
+    return error("INVALID_FOLDER", `Folder names must be at most ${MAX_FOLDER_LENGTH} characters and cannot contain slashes`, 400, headers);
+  }
+
   const object = await profile.bucket.get(key);
   if (!object) {
     return error("IMAGE_NOT_FOUND", "The image does not exist", 404, headers);
   }
 
-  const customMetadata = {
+  const existingTags = storedTags(object.customMetadata?.tags);
+  const combinedTags = addTags ? normalizeTags([
+    ...existingTags,
+    ...addTags.filter((tag) => !existingTags.some((existing) => existing.toLocaleLowerCase("en") === tag.toLocaleLowerCase("en"))),
+  ]) : tags;
+  if (addTags && !combinedTags) {
+    await object.body.cancel();
+    return error("INVALID_TAGS", `The merged image tags would exceed ${MAX_TAGS} tags`, 400, headers);
+  }
+  const customMetadata: Record<string, string> = {
     ...object.customMetadata,
     ...(filename ? { filename } : {}),
-    ...(tags ? { tags: JSON.stringify(tags) } : {}),
+    ...(combinedTags ? { tags: JSON.stringify(combinedTags) } : {}),
   };
+  if (hasFolder) {
+    if (folder) customMetadata.folder = folder;
+    else delete customMetadata.folder;
+  }
   const updated = await profile.bucket.put(key, object.body, {
     ...(object.httpMetadata ? { httpMetadata: object.httpMetadata } : {}),
     customMetadata,

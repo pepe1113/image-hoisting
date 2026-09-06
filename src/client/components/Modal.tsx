@@ -5,9 +5,15 @@ interface ModalProps {
   title: string;
   children: ReactNode;
   onClose: () => void;
+  variant?: "default" | "lightbox";
 }
 
-export function Modal({ title, children, onClose }: ModalProps) {
+export function Modal({
+  title,
+  children,
+  onClose,
+  variant = "default",
+}: ModalProps) {
   const titleId = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
 
@@ -33,6 +39,7 @@ export function Modal({ title, children, onClose }: ModalProps) {
     <dialog
       ref={dialogRef}
       className="modal-backdrop"
+      data-variant={variant}
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault();
@@ -42,9 +49,7 @@ export function Modal({ title, children, onClose }: ModalProps) {
         if (event.currentTarget === event.target) onClose();
       }}
     >
-      <section
-        className="modal-card"
-      >
+      <section className={`modal-card modal-card-${variant}`}>
         <div className="modal-heading">
           <h2 id={titleId}>{title}</h2>
           <button

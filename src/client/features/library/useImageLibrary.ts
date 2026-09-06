@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { deleteImage, fetchImages, updateImage } from "../../api";
 import { markdownForImage } from "../../core";
-import type { ImageRecord } from "../../types";
+import type { ImageList, ImagePatch, ImageRecord } from "../../types";
 
 interface UseImageLibraryOptions {
   enabled: boolean;
@@ -15,8 +15,12 @@ interface UseImageLibraryOptions {
 
 export interface ImageLibraryController {
   search: string;
+  folder: string | null;
+  folders: string[];
   images: ImageRecord[];
-  cursor: string | null;
+  summary: ImageList["summary"] | null;
+  total: number;
+  hasMore: boolean;
   loading: boolean;
   editTarget: ImageRecord | null;
   editFilename: string;
@@ -28,6 +32,17 @@ export interface ImageLibraryController {
   allImagesSelected: boolean;
   batchDeleteOpen: boolean;
   batchDeleting: boolean;
+  batchDialog: "tags" | "folder" | null;
+  batchTags: string[];
+  batchUpdating: boolean;
+  batchUpdateError: string;
+  batchFolder: string;
+  setBatchTags: (tags: string[]) => void;
+  setBatchFolder: (folder: string) => void;
+  setFolder: (folder: string | null) => void;
+  openBatchDialog: (dialog: "tags" | "folder") => void;
+  closeBatchDialog: () => void;
+  confirmBatchUpdate: (event: FormEvent) => Promise<void>;
   setEditFilename: (filename: string) => void;
   setEditTags: (tags: string[]) => void;
   setDeleteTarget: (image: ImageRecord | null) => void;
@@ -38,7 +53,7 @@ export interface ImageLibraryController {
   closeEditor: () => void;
   refresh: () => void;
   resetForProfile: () => void;
-  loadMore: () => Promise<void>;
+  loadMore: () => void;
   saveEdit: (event: FormEvent) => Promise<void>;
   confirmDelete: () => Promise<void>;
   toggleImageSelection: (key: string) => void;
@@ -59,8 +74,12 @@ export function useImageLibrary({
   requestErrorMessage,
 }: UseImageLibraryOptions): ImageLibraryController {
   const [search, setSearchValue] = useState("");
+  const [folder, setFolderValue] = useState<string | null>(null);
   const [images, setImages] = useState<ImageRecord[]>([]);
+  const [summary, setSummary] = useState<ImageList["summary"] | null>(null);
+  const [pagination, setPagination] = useState<ImageList["pagination"] | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
+  const generation = useRef(0);
   const [loading, setLoading] = useState(false);
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [editTarget, setEditTarget] = useState<ImageRecord | null>(null);
@@ -73,21 +92,33 @@ export function useImageLibrary({
   );
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
   const [batchDeleting, setBatchDeleting] = useState(false);
+  const [batchDialog, setBatchDialog] = useState<"tags" | "folder" | null>(null);
+  const [batchTags, setBatchTags] = useState<string[]>([]);
+  const [batchUpdating, setBatchUpdating] = useState(false);
+  const [batchUpdateError, setBatchUpdateError] = useState("");
+  const [batchFolder, setBatchFolder] = useState("");
+  const batchLock = useRef(false);
   const selectedImages = images.filter((image) => selectedKeys.has(image.key));
   const allImagesSelected =
     images.length > 0 && selectedImages.length === images.length;
 
   useEffect(() => {
+    generation.current += 1;
     if (!enabled || !profileId || !token) return;
     const controller = new AbortController();
     let ignore = false;
     const timer = window.setTimeout(() => {
       setLoading(true);
-      fetchImages(token, profileId, search, null, controller.signal)
+      fetchImages(token, profileId, search, folder, cursor, controller.signal)
         .then((payload) => {
           if (ignore) return;
-          setImages(payload.data);
-          setCursor(payload.pagination.cursor);
+          setImages((current) =>
+            payload.pagination.offset === 0
+              ? payload.data
+              : [...current, ...payload.data],
+          );
+          setSummary(payload.summary ?? null);
+          setPagination(payload.pagination);
           setNotice("");
         })
         .catch((error: Error) => {
@@ -103,20 +134,24 @@ export function useImageLibrary({
 
     return () => {
       ignore = true;
+      generation.current += 1;
       window.clearTimeout(timer);
       controller.abort();
     };
   }, [
     enabled,
+    folder,
     profileId,
     refreshVersion,
     requestErrorMessage,
     search,
+    cursor,
     setNotice,
     token,
   ]);
 
   const refresh = useCallback(() => {
+    setCursor(null);
     setRefreshVersion((version) => version + 1);
   }, []);
 
@@ -124,19 +159,34 @@ export function useImageLibrary({
     setSelectedKeys(new Set());
     setSelectionMode(false);
     setBatchDeleteOpen(false);
+    setBatchDialog(null);
   }
 
   function setSearch(nextSearch: string): void {
+    if (nextSearch === search) {
+      cancelSelection();
+      return;
+    }
     setSearchValue(nextSearch);
+    setCursor(null);
+    setImages([]);
+    setLoading(true);
     cancelSelection();
   }
 
   function resetForProfile(): void {
+    generation.current += 1;
     setImages([]);
+    setSummary(null);
+    setPagination(null);
     setCursor(null);
     setSearchValue("");
+    setFolderValue(null);
     setEditTarget(null);
     setDeleteTarget(null);
+    setBatchDeleting(false);
+    setBatchUpdating(false);
+    batchLock.current = false;
     cancelSelection();
   }
 
@@ -146,50 +196,40 @@ export function useImageLibrary({
     setEditTags(image.tags);
   }
 
-  async function loadMore(): Promise<void> {
-    if (!cursor) return;
-    setLoading(true);
-    try {
-      const payload = await fetchImages(
-        token,
-        profileId,
-        search,
-        cursor,
-      );
-      setImages((current) => [...current, ...payload.data]);
-      setCursor(payload.pagination.cursor);
-    } catch (error) {
-      setNotice(requestErrorMessage(error, "Could not load more images."));
-    } finally {
-      setLoading(false);
-    }
-  }
+  const loadMore = useCallback(() => {
+    if (!loading && pagination?.cursor) setCursor(pagination.cursor);
+  }, [loading, pagination?.cursor]);
 
   async function saveEdit(event: FormEvent): Promise<void> {
     event.preventDefault();
     if (!editTarget) return;
+    const currentGeneration = generation.current;
     try {
       const updated = await updateImage(
         token,
         profileId,
         editTarget.key,
-        editFilename,
-        editTags,
+        { filename: editFilename, tags: editTags },
       );
+      if (currentGeneration !== generation.current) return;
       setImages((current) =>
         current.map((image) => (image.key === updated.key ? updated : image)),
       );
       setEditTarget(null);
       setToast("Image details updated");
+      refresh();
     } catch (error) {
+      if (currentGeneration !== generation.current) return;
       setNotice(requestErrorMessage(error, "Update failed."));
     }
   }
 
   async function confirmDelete(): Promise<void> {
     if (!deleteTarget) return;
+    const currentGeneration = generation.current;
     try {
       await deleteImage(token, profileId, deleteTarget.key);
+      if (currentGeneration !== generation.current) return;
       setImages((current) =>
         current.filter((image) => image.key !== deleteTarget.key),
       );
@@ -200,7 +240,9 @@ export function useImageLibrary({
       });
       setDeleteTarget(null);
       setToast("Image deleted");
+      refresh();
     } catch (error) {
+      if (currentGeneration !== generation.current) return;
       setNotice(requestErrorMessage(error, "Delete failed."));
     }
   }
@@ -236,10 +278,12 @@ export function useImageLibrary({
   async function confirmBatchDelete(): Promise<void> {
     if (selectedImages.length === 0) return;
     const targets = selectedImages;
+    const currentGeneration = generation.current;
     setBatchDeleting(true);
     const results = await Promise.allSettled(
       targets.map((image) => deleteImage(token, profileId, image.key)),
     );
+    if (currentGeneration !== generation.current) return;
     const deletedKeys = new Set(
       targets.flatMap((image, index) =>
         results[index]?.status === "fulfilled" ? [image.key] : [],
@@ -271,12 +315,65 @@ export function useImageLibrary({
     }
     setBatchDeleting(false);
     setBatchDeleteOpen(false);
+    refresh();
+  }
+
+  function setFolder(folder: string | null): void {
+    setFolderValue(folder);
+    setCursor(null);
+    setImages([]);
+    setLoading(true);
+    cancelSelection();
+  }
+
+  function openBatchDialog(dialog: "tags" | "folder"): void {
+    setBatchTags([]);
+    setBatchFolder("");
+    setBatchUpdateError("");
+    setBatchDialog(dialog);
+  }
+
+  async function confirmBatchUpdate(event: FormEvent): Promise<void> {
+    event.preventDefault();
+    if (batchLock.current || loading || selectedImages.length === 0 || (batchDialog === "tags" && batchTags.length === 0)) return;
+    batchLock.current = true;
+    setBatchUpdating(true);
+    setBatchUpdateError("");
+    const currentGeneration = generation.current;
+    const changes: ImagePatch = batchDialog === "folder" ? { folder: batchFolder } : { addTags: batchTags };
+    const updated = new Map<string, ImageRecord>();
+    const failures: { key: string; message: string }[] = [];
+    for (const image of selectedImages) {
+      if (currentGeneration !== generation.current) return;
+      try {
+        updated.set(image.key, await updateImage(token, profileId, image.key, changes));
+      } catch (error) {
+        failures.push({ key: image.key, message: `${image.filename}: ${requestErrorMessage(error, "Update failed.")}` });
+      }
+    }
+    if (currentGeneration !== generation.current) return;
+    setImages((current) => current.map((image) => updated.get(image.key) ?? image));
+    setSelectedKeys(new Set(failures.map((failure) => failure.key)));
+    setBatchUpdating(false);
+    batchLock.current = false;
+    if (failures.length > 0) {
+      setBatchUpdateError(`${updated.size} updated; ${failures.length} failed. ${failures.map((failure) => failure.message).join(" ")}`);
+    } else {
+      setBatchDialog(null);
+      setSelectionMode(false);
+      setToast(`${updated.size} images updated`);
+    }
+    refresh();
   }
 
   return {
     search,
+    folder,
+    folders: summary?.folders ?? [],
     images,
-    cursor,
+    summary,
+    total: pagination?.total ?? images.length,
+    hasMore: Boolean(pagination?.cursor),
     loading,
     editTarget,
     editFilename,
@@ -288,6 +385,17 @@ export function useImageLibrary({
     allImagesSelected,
     batchDeleteOpen,
     batchDeleting,
+    batchDialog,
+    batchTags,
+    batchUpdating,
+    batchUpdateError,
+    batchFolder,
+    setBatchTags,
+    setBatchFolder,
+    setFolder,
+    openBatchDialog,
+    closeBatchDialog: () => { if (!batchLock.current) setBatchDialog(null); },
+    confirmBatchUpdate,
     setEditFilename,
     setEditTags,
     setDeleteTarget,

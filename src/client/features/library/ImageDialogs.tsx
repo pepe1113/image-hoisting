@@ -34,6 +34,47 @@ export function ImageDialogs({
 
   return (
     <>
+      {library.batchDialog ? (
+        <Modal title={library.batchDialog === "tags" ? "Add tags to selected images" : "Move selected images"} onClose={library.closeBatchDialog}>
+          <form onSubmit={library.confirmBatchUpdate}>
+            <fieldset className="batch-metadata-fields" disabled={library.batchUpdating || library.loading}>
+              {library.batchDialog === "tags" ? (
+                <>
+                  <p>Tags will be added to {selectedImages.length} selected images. Existing tags are kept.</p>
+                  <label className="dialog-field">
+                    <span>Tags to add</span>
+                    <TagEditor tags={library.batchTags} maxTags={limits.maxTags} maxTagLength={limits.maxTagLength} onChange={library.setBatchTags} />
+                  </label>
+                </>
+              ) : (
+                <>
+                  <p>Move {selectedImages.length} selected images without changing their public URLs. Leave blank to move them to Unfiled.</p>
+                  <label className="dialog-field">
+                    <span>Folder</span>
+                    <input
+                      value={library.batchFolder}
+                      list="history-folders"
+                      maxLength={80}
+                      placeholder="Unfiled"
+                      onChange={(event) => library.setBatchFolder(event.target.value)}
+                    />
+                  </label>
+                  <datalist id="history-folders">
+                    {library.folders.map((folder) => <option value={folder} key={folder} />)}
+                  </datalist>
+                </>
+              )}
+              {library.batchUpdateError ? <p className="notice" role="alert">{library.batchUpdateError}</p> : null}
+              <div className="dialog-actions">
+                <button className="button button-secondary" type="button" onClick={library.closeBatchDialog}>Cancel</button>
+                <button className="button button-primary" type="submit" disabled={selectedImages.length === 0 || (library.batchDialog === "tags" && library.batchTags.length === 0)}>
+                  {library.batchUpdating ? "Updating…" : library.batchUpdateError ? "Retry failed images" : library.batchDialog === "tags" ? "Add Tags" : "Move images"}
+                </button>
+              </div>
+            </fieldset>
+          </form>
+        </Modal>
+      ) : null}
       {editTarget ? (
         <Modal title="Edit image details" onClose={closeEditor}>
           <form onSubmit={saveEdit}>

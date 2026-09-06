@@ -15,9 +15,32 @@ export interface ImageRecord {
   filename: string;
   tags: string[];
   uploadedAt: string;
+  width: number | null;
+  height: number | null;
+  folder: string | null;
 }
 
 export type Theme = "system" | "light" | "dark";
+export interface ImageList {
+  data: ImageRecord[];
+  summary: { total: number; totalBytes: number; folders: string[] };
+  pagination: {
+    cursor: string | null;
+    truncated: boolean;
+    limit: number;
+    offset: number;
+    total: number;
+    totalBytes: number;
+  };
+}
+
+export interface ImagePatch {
+  filename?: string;
+  tags?: string[];
+  addTags?: string[];
+  folder?: string;
+}
+
 export type GalleryView = "grid" | "list";
 export type ProcessingPreset = "high" | "standard" | "fast" | "custom";
 export type SharpenLevel = "off" | "low" | "mid" | "high";
