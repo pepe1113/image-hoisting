@@ -19,7 +19,6 @@ export const DEFAULT_PROFILE_PREFERENCES: ProfilePreferences = {
   quality: 85,
   sharpen: "mid",
   outputFormat: "webp",
-  view: "grid",
 };
 
 export const PROCESSING_PRESETS = {
@@ -171,8 +170,7 @@ function parsePreferences(value: unknown): ProfilePreferences | null {
     Number(item.quality) < 10 ||
     Number(item.quality) > 100 ||
     !isSharpen(item.sharpen) ||
-    !isOutputFormat(item.outputFormat) ||
-    (item.view !== "grid" && item.view !== "list")
+    !isOutputFormat(item.outputFormat)
   ) {
     return null;
   }
@@ -182,7 +180,6 @@ function parsePreferences(value: unknown): ProfilePreferences | null {
     quality: Number(item.quality),
     sharpen: item.sharpen,
     outputFormat: item.outputFormat,
-    view: item.view,
   };
 }
 

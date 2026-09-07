@@ -49,6 +49,7 @@
 - **固定管理金鑰：** 使用部署者管理的 Bearer token 保護所有管理 API
 - **主題：** 跟隨系統，或選擇亮色／深色模式
 - **標籤：** 新增標籤，並依標籤搜尋圖片
+- **Gallery 與 List：** 從 Header 切換左右保留 30 px 的滿版 Masonry Gallery，往下捲動時載入更多圖片；或使用置中、最大寬度 900 px 的 List，方便閱讀與操作
 - **編輯：** 修改顯示檔名，不改變圖片網址
 - **刪除：** 從圖片庫刪除圖片
 
@@ -175,7 +176,7 @@ npx wrangler secret put ADMIN_TOKEN
 
 ## Multiple Profiles
 
-每個 profile 對應一個 Cloudflare R2 bucket。切換 profile 後，上傳、歷史紀錄、搜尋與刪除都會依 bucket 分開
+每個 profile 對應一個 Cloudflare R2 bucket。切換 profile 後，上傳、Gallery／List、搜尋與刪除都會依 bucket 分開
 
 1. 在 Cloudflare 建立 R2 bucket，並啟用公開網址。
 2. 在應用程式中選擇 **+**，填寫下列表格欄位。

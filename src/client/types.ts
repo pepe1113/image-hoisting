@@ -45,7 +45,7 @@ export type GalleryView = "grid" | "list";
 export type ProcessingPreset = "high" | "standard" | "fast" | "custom";
 export type SharpenLevel = "off" | "low" | "mid" | "high";
 export type OutputFormat = "original" | "webp";
-export type WorkspaceTab = "upload" | "history";
+export type WorkspaceTab = "upload" | "gallery" | "list";
 
 export interface ProfilePreferences {
   processingPreset: ProcessingPreset;
@@ -53,7 +53,6 @@ export interface ProfilePreferences {
   quality: number;
   sharpen: SharpenLevel;
   outputFormat: OutputFormat;
-  view: GalleryView;
 }
 
 export interface AppSettings {

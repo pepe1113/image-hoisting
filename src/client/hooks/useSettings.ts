@@ -11,7 +11,6 @@ import {
 } from "../core";
 import type {
   AppSettings,
-  GalleryView,
   ImageProfile,
   ProfilePreferences,
   Theme,
@@ -88,10 +87,6 @@ export function useSettings() {
     }));
   }
 
-  function setView(view: GalleryView): void {
-    updatePreferences({ ...preferences, view });
-  }
-
   return {
     activeProfileId,
     preferences,
@@ -100,6 +95,5 @@ export function useSettings() {
     setActiveProfileId,
     reconcileProfiles,
     updatePreferences,
-    setView,
   };
 }

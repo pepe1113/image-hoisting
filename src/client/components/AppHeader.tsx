@@ -129,10 +129,17 @@ export function AppHeader({
           </button>
           <button
             type="button"
-            aria-current={tab === "history" ? "page" : undefined}
-            onClick={() => closeMenuAfter(() => onNavigate("history"))}
+            aria-current={tab === "gallery" ? "page" : undefined}
+            onClick={() => closeMenuAfter(() => onNavigate("gallery"))}
           >
-            History
+            Gallery
+          </button>
+          <button
+            type="button"
+            aria-current={tab === "list" ? "page" : undefined}
+            onClick={() => closeMenuAfter(() => onNavigate("list"))}
+          >
+            List
           </button>
         </nav>
         <div className="header-actions">

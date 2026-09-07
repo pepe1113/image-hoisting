@@ -190,7 +190,7 @@ describe("frontend helpers", () => {
 
     const result = await prepareImage(
       new File(["source"], "cover.png", { type: "image/png" }),
-      { ...PROCESSING_PRESETS.fast, processingPreset: "fast", view: "grid" },
+      { ...PROCESSING_PRESETS.fast, processingPreset: "fast" },
     );
 
     expect(result.changed).toBe(true);
@@ -233,21 +233,23 @@ describe("React image workspace", () => {
     expect(screen.getByRole("dialog", { name: "Admin key" })).toBeTruthy();
   });
 
-  it("switches between upload and history from the header navigation", async () => {
+  it("switches between upload, gallery and list from the header navigation", async () => {
     renderWithAdminKey();
     const navigation = screen.getByRole("navigation", { name: "Workspace" });
     expect(navigation.getAttribute("data-active")).toBe("upload");
     expect(screen.getByRole("button", { name: "Upload" }).getAttribute("aria-current")).toBe("page");
 
-    fireEvent.click(screen.getByRole("button", { name: "History" }));
-    expect(navigation.getAttribute("data-active")).toBe("history");
-    expect(screen.getByRole("button", { name: "History" }).getAttribute("aria-current")).toBe("page");
+    fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
+    expect(navigation.getAttribute("data-active")).toBe("gallery");
+    expect(screen.getByRole("button", { name: "Gallery" }).getAttribute("aria-current")).toBe("page");
     expect(await screen.findByText("Your history is empty")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Gallery.");
 
-    const viewSwitcher = screen.getByLabelText("Image view");
-    expect(viewSwitcher.getAttribute("data-view")).toBe("grid");
-    fireEvent.click(screen.getByRole("button", { name: "List view" }));
-    expect(viewSwitcher.getAttribute("data-view")).toBe("list");
+    fireEvent.click(screen.getByRole("button", { name: "List" }));
+    expect(navigation.getAttribute("data-active")).toBe("list");
+    expect(screen.getByRole("button", { name: "List" }).getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Image list.");
+    expect(screen.queryByLabelText("Image view")).toBeNull();
   });
 
   it("opens the mobile navigation menu", () => {
@@ -452,12 +454,12 @@ describe("React image workspace", () => {
     }));
 
     renderWithAdminKey();
-    fireEvent.click(screen.getByRole("button", { name: "History" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
     await screen.findByRole("button", { name: "Select" });
     expect(screen.queryByRole("button", { name: "Select cover.webp" })).toBeNull();
     expect(screen.queryByRole("checkbox", { name: "Select all" })).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "List view" }));
+    fireEvent.click(screen.getByRole("button", { name: "List" }));
     fireEvent.click(screen.getByRole("button", { name: "Select" }));
     expect(screen.getByRole("button", { name: "Select cover.webp" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Select detail.webp" })).toBeTruthy();
@@ -493,7 +495,7 @@ describe("React image workspace", () => {
     }));
 
     renderWithAdminKey();
-    fireEvent.click(screen.getByRole("button", { name: "History" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
     fireEvent.click(await screen.findByRole("button", { name: "View cover.webp full size" }));
 
     const dialog = screen.getByRole("dialog", { name: "cover.webp" });
@@ -521,10 +523,10 @@ describe("React image workspace", () => {
     }));
 
     renderWithAdminKey();
-    fireEvent.click(screen.getByRole("button", { name: "History" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
     await screen.findByRole("button", { name: "Select" });
-    fireEvent.click(screen.getByRole("button", { name: "List view" }));
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Image history.");
+    fireEvent.click(screen.getByRole("button", { name: "List" }));
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Image list.");
     expect(screen.getByText("640×480")).toBeTruthy();
     expect(screen.getByText("Total files").nextElementSibling?.textContent).toBe("2");
     expect(screen.getByText("Bucket size").nextElementSibling?.textContent).toBe("2.1 KiB");
@@ -537,7 +539,7 @@ describe("React image workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Edit cover.webp" }));
     expect(screen.getByRole("dialog", { name: "Edit image details" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    fireEvent.click(screen.getByRole("button", { name: "Grid view" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
     fireEvent.click(screen.getByRole("button", { name: "Copy Markdown for cover.webp" }));
     await waitFor(() => expect(writeText).toHaveBeenCalledTimes(3));
   });
@@ -563,7 +565,7 @@ describe("React image workspace", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     renderWithAdminKey();
-    fireEvent.click(screen.getByRole("button", { name: "History" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
     await screen.findByRole("button", { name: "Select" });
     fireEvent.click(screen.getByRole("button", { name: "Select" }));
     fireEvent.click(screen.getByRole("button", { name: "Select cover.webp" }));
@@ -594,7 +596,7 @@ describe("React image workspace", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     renderWithAdminKey();
-    fireEvent.click(screen.getByRole("button", { name: "History" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
     fireEvent.click(await screen.findByRole("button", { name: "Select" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Select all" }));
     fireEvent.click(screen.getByRole("button", { name: "Add Tags" }));
@@ -635,7 +637,7 @@ describe("React image workspace", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     renderWithAdminKey();
-    fireEvent.click(screen.getByRole("button", { name: "History" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
     await screen.findByText("Portfolio", { selector: ".image-folder" });
     fireEvent.change(screen.getByRole("combobox", { name: "Filter by folder" }), { target: { value: "folder:Portfolio" } });
     await waitFor(() => expect(screen.queryByRole("button", { name: "View detail.webp full size" })).toBeNull());
@@ -680,7 +682,7 @@ describe("React image workspace", () => {
     }));
 
     renderWithAdminKey();
-    fireEvent.click(screen.getByRole("button", { name: "History" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
     await screen.findByRole("button", { name: "Select" });
     expect(screen.queryByRole("button", { name: "Select cover.webp" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Select" }));

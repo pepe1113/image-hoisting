@@ -8,12 +8,7 @@ import {
   Tags,
   Trash2,
 } from "lucide-react";
-import {
-  CheckIcon,
-  CopyIcon,
-  GridViewIcon,
-  ListViewIcon,
-} from "../../components/icons";
+import { CheckIcon, CopyIcon } from "../../components/icons";
 import { Modal } from "../../components/Modal";
 import {
   formatBytes,
@@ -28,7 +23,6 @@ interface LibraryPanelProps {
   library: ImageLibraryController;
   profileLabel: string;
   view: GalleryView;
-  onViewChange: (view: GalleryView) => void;
   onCopy: (value: string, message: string) => void;
 }
 
@@ -36,7 +30,6 @@ export function LibraryPanel({
   library,
   profileLabel,
   view,
-  onViewChange,
   onCopy,
 }: LibraryPanelProps) {
   const [preview, setPreview] = useState<
@@ -95,14 +88,17 @@ export function LibraryPanel({
 
   return (
     <section
-      className="tab-panel"
-      aria-label="Image history"
+      className="library-section tab-panel"
+      data-view={view}
+      aria-label={view === "grid" ? "Image gallery" : "Image list"}
       aria-busy={loading}
     >
       <div className="library-heading workspace-heading">
         <div>
           <mark className="eyebrow">PERSONAL IMAGE TOOL</mark>
-          <h1 id="page-title">Image history.</h1>
+          <h1 id="page-title">
+            {view === "grid" ? "Gallery." : "Image list."}
+          </h1>
           <p>
             Images stored in{" "}
             <mark className="active-profile-name">{profileLabel}</mark>. Copy,
@@ -156,30 +152,6 @@ export function LibraryPanel({
           </label>
         </div>
         <div className="library-controls">
-          <div
-            className="view-switcher"
-            aria-label="Image view"
-            data-view={view}
-          >
-            <button
-              className={`view-button${view === "grid" ? " is-active" : ""}`}
-              type="button"
-              aria-label="Grid view"
-              aria-pressed={view === "grid"}
-              onClick={() => onViewChange("grid")}
-            >
-              <GridViewIcon />
-            </button>
-            <button
-              className={`view-button${view === "list" ? " is-active" : ""}`}
-              type="button"
-              aria-label="List view"
-              aria-pressed={view === "list"}
-              onClick={() => onViewChange("list")}
-            >
-              <ListViewIcon />
-            </button>
-          </div>
           {images.length > 0 ? (
             <button
               className="button button-secondary selection-mode-button"

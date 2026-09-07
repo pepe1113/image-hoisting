@@ -24,7 +24,7 @@ export function App() {
     setToast: notifications.setToast,
   });
   const library = useImageLibrary({
-    enabled: tab === "history",
+    enabled: tab !== "upload",
     token: access.token,
     profileId: settings.activeProfileId,
     setNotice: notifications.setNotice,
@@ -89,8 +89,7 @@ export function App() {
         <LibraryPanel
           library={library}
           profileLabel={profileLabel}
-          view={settings.preferences.view}
-          onViewChange={settings.setView}
+          view={tab === "gallery" ? "grid" : "list"}
           onCopy={notifications.copyText}
         />
       )}

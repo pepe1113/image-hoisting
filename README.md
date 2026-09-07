@@ -55,6 +55,7 @@ Drop or paste an image into the page, optimize it in the browser, upload it to C
 - **Permanent admin key:** Protect every management API with a deployer-owned Bearer token saved from the key icon.
 - **Themes:** Use the system theme or choose light/dark mode.
 - **Tags:** Add tags and search images by tag.
+- **Gallery and list:** Switch from the header between a full-width Masonry gallery with 30 px margins that loads more images as you scroll, or a centered list capped at 900 px for easier reading and management.
 - **Edit:** Change the display filename without changing the image URL.
 - **Delete:** Remove images from the library.
 
@@ -127,7 +128,7 @@ Existing deployments using the former `AUTH_TOKEN` secret remain compatible, but
 
 ## Profiles
 
-Each profile maps to one Cloudflare R2 bucket. Switching profiles keeps uploads, history, search, and deletion separated by bucket.
+Each profile maps to one Cloudflare R2 bucket. Switching profiles keeps uploads, gallery and list views, search, and deletion separated by bucket.
 
 1. Create an R2 bucket and enable its public URL in Cloudflare.
 2. Select **+** in the app and complete the fields below.

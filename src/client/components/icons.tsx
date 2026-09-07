@@ -1,5 +1,4 @@
 import {
-  LayoutDashboard,
   Check,
   ChevronDown,
   CircleHelp,
@@ -70,12 +69,4 @@ export function InfoIcon() {
 
 export function BrandIcon() {
   return <ImageUp className="header-icon" aria-hidden="true" />;
-}
-
-export function GridViewIcon({ className = "button-icon" }: IconProps) {
-  return <LayoutDashboard className={className} aria-hidden="true" />;
-}
-
-export function ListViewIcon({ className = "button-icon" }: IconProps) {
-  return <Menu className={className} aria-hidden="true" />;
 }
