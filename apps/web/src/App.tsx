@@ -13,10 +13,6 @@ import { useWorkspaceAccess } from "./hooks/useWorkspaceAccess";
 import type { WorkspaceTab } from "./types";
 
 export function App() {
-  if (new URL(globalThis.location.href).searchParams.get("sentry-test") === "render-crash") {
-    throw new Error("Sentry verification render crash");
-  }
-
   const [tab, setTab] = useState<WorkspaceTab>("upload");
   const [profileSetupOpen, setProfileSetupOpen] = useState(false);
   const notifications = useNotifications();
