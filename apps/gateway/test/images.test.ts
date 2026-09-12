@@ -187,6 +187,46 @@ describe("filename and signature safety", () => {
   });
 });
 
+describe("request observability", () => {
+  it("correlates safe error logs without request secrets or image metadata", async () => {
+    const bucket = new FakeR2Bucket();
+    bucket.head = async () => {
+      throw new Error("private-photo.png secret-tag request-body");
+    };
+    const form = new FormData();
+    form.set("file", pngFile("private-photo.png"));
+    form.set("filename", "private-photo.png");
+    form.set("tag", "secret-tag");
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const response = await handleWorkerRequest(
+      new Request("https://api.example.com/api/images?tag=secret-tag", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${ADMIN_TOKEN}`,
+          "CF-Ray": "test-request-id",
+        },
+        body: form,
+      }),
+      createEnv(bucket),
+    );
+
+    expect(response.status).toBe(500);
+    expect(response.headers.get("X-Request-ID")).toBe("test-request-id");
+    expect(log).toHaveBeenCalledWith("Unhandled Gateway request error", {
+      requestId: "test-request-id",
+      method: "POST",
+      pathname: "/api/images",
+      status: 500,
+      error: "Error",
+    });
+    const logged = JSON.stringify(log.mock.calls);
+    for (const secret of [ADMIN_TOKEN, "private-photo.png", "secret-tag", "request-body"]) {
+      expect(logged).not.toContain(secret);
+    }
+    log.mockRestore();
+  });
+});
+
 describe("image API", () => {
   it("returns a public health check", async () => {
     const response = await handleRequest(new Request("https://api.example.com/health"), createEnv());
@@ -255,17 +295,22 @@ describe("image API", () => {
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     const response = await handleRequest(
-      new Request("https://api.example.com/api/images?private=secret"),
+      new Request("https://api.example.com/api/images?private=secret", {
+        headers: { "CF-Ray": "list-request-id" },
+      }),
       createEnv(bucket),
     );
 
     expect(response.status).toBe(500);
+    expect(response.headers.get("X-Request-ID")).toBe("list-request-id");
     expect(errorLog).toHaveBeenCalledWith(
-      "Unhandled Worker request error",
+      "Unhandled Gateway request error",
       {
+        requestId: "list-request-id",
         method: "GET",
         pathname: "/api/images",
-        failure: { name: "Error", message: "R2 unavailable" },
+        status: 500,
+        error: "Error",
       },
     );
     expect(JSON.stringify(errorLog.mock.calls)).not.toContain("private=secret");

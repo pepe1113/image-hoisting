@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { App } from "../src/client/App";
+import { App } from "../src/App";
 import {
   ADMIN_TOKEN_KEY,
   DEFAULT_SETTINGS,
@@ -14,12 +14,12 @@ import {
   parseTagInput,
   savedPercent,
   scalePercent,
-} from "../src/client/core";
-import { prepareImage } from "../src/client/image-processing";
+} from "../src/core";
+import { prepareImage } from "../src/image-processing";
 import {
   applyUnsharpMask,
   SHARPEN_AMOUNTS,
-} from "../src/client/image-processing-core";
+} from "../src/image-processing-core";
 
 function memoryStorage(): Storage {
   const entries = new Map<string, string>();

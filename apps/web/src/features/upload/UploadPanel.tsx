@@ -12,7 +12,7 @@ import type {
   ProfilePreferences,
   SharpenLevel,
 } from "../../types";
-import type { WorkspaceLimits } from "../../../shared/limits";
+import type { WorkspaceLimits } from "@image-hoisting/contracts";
 import { ProcessingDialog } from "./ProcessingDialog";
 import { UploadResult } from "./UploadResult";
 import type { UploadController } from "./useUpload";

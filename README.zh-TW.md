@@ -1,7 +1,7 @@
 [English](README.md) | [繁體中文](README.zh-TW.md)
 
 <p align="center">
-  <img src="public/icon.png" height="100" style="border-radius:20px;margin:30px 0;">
+  <img src="apps/web/public/icon.png" height="100" style="border-radius:20px;margin:30px 0;">
   <h1 align="center">R2 Image Hosting</h1>
 </p>
 
@@ -27,13 +27,14 @@
 - [API](#api)
 - [Multiple Profiles](#multiple-profiles)
 - [Commands](#commands)
+- [CI 與部署](#ci-與部署)
 - [Security and Privacy](#security-and-privacy)
 - [License](#license)
 
 可自行 clone 到本機或 deploy 至雲端，將圖片拖曳或貼到頁面，在瀏覽器中提供選項 resize、圖片壓縮、優化成 webp 後上傳至 Cloudflare R2，可複製 Markdown 圖片語法或網址
 
 <p align="center">
-  <img src="./public/demo.gif" alt="R2 Image Hosting upload workspace" width="500" />
+  <img src="./apps/web/public/demo.gif" alt="R2 Image Hosting upload workspace" width="500" />
 </p>
 ## Features
 
@@ -64,6 +65,8 @@
 | Vitest | 自動化測試 |
 
 瀏覽器端執行依賴為 React 與 ReactDOM；圖片處理使用瀏覽器原生 API，不另外加入圖片 codec dependency
+
+pnpm workspace 只包含 `apps/web`、`apps/gateway` 與 `packages/contracts`。Gateway Worker 仍是唯一公開入口，一次部署 Web assets 與 API；Contracts 只保存兩個 app 共用的資料、限制與錯誤格式。
 
 [圖片處理效能測試](docs/image-processing-benchmark.md)
 
@@ -206,6 +209,20 @@ npx wrangler secret put ADMIN_TOKEN
 | `pnpm typecheck` | 檢查 TypeScript 型別 |
 | `pnpm check` | 執行 lint、型別檢查、測試與正式建置 |
 | `pnpm deploy` | 部署 Worker 至 Cloudflare |
+
+## CI 與部署
+
+Pull request 與推送到 `main` 時，GitHub Actions 會使用專案宣告的 pnpm 版本、`.nvmrc` 的 Node 版本及 frozen lockfile 執行 `pnpm check`。只有 `main` 的檢查成功後，同一個 workflow 才會一起部署 Web assets 與 Gateway Worker。
+
+請在 GitHub 的 `production` environment 設定以下加密 secrets：
+
+| Secret | 內容 |
+| --- | --- |
+| `CLOUDFLARE_ACCOUNT_ID` | 擁有此 Worker 的 Cloudflare account ID |
+| `CLOUDFLARE_API_TOKEN` | 限制於該帳號、使用 Cloudflare **Edit Cloudflare Workers** policy 的 token |
+| `CLOUDFLARE_WRANGLER_CONFIG` | 個人 `wrangler.jsonc` 的完整內容 |
+
+Workflow 只會在暫時的 runner 建立 `wrangler.jsonc`；個人設定仍由 Git 忽略，pull request 也無法取得部署 secrets。
 
 
 ## Security and Privacy

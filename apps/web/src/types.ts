@@ -1,46 +1,6 @@
-export interface ImageProfile {
-  id: string;
-  label: string;
-  isDefault: boolean;
-}
-
-export interface ImageRecord {
-  profileId: string;
-  key: string;
-  url: string;
-  size: number;
-  etag: string;
-  contentType: string | null;
-  originalName: string | null;
-  filename: string;
-  tags: string[];
-  uploadedAt: string;
-  width: number | null;
-  height: number | null;
-  folder: string | null;
-}
+export type { ImageList, ImagePatch, ImageProfile, ImageRecord } from "@image-hoisting/contracts";
 
 export type Theme = "system" | "light" | "dark";
-export interface ImageList {
-  data: ImageRecord[];
-  summary: { total: number; totalBytes: number; folders: string[] };
-  pagination: {
-    cursor: string | null;
-    truncated: boolean;
-    limit: number;
-    offset: number;
-    total: number;
-    totalBytes: number;
-  };
-}
-
-export interface ImagePatch {
-  filename?: string;
-  tags?: string[];
-  addTags?: string[];
-  folder?: string;
-}
-
 export type GalleryView = "grid" | "list";
 export type ProcessingPreset = "high" | "standard" | "fast" | "custom";
 export type SharpenLevel = "off" | "low" | "mid" | "high";

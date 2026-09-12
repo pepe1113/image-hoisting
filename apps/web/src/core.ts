@@ -7,7 +7,7 @@ import type {
   SharpenLevel,
   Theme,
 } from "./types";
-export { MAX_TAG_LENGTH, MAX_TAGS } from "../shared/limits";
+export { MAX_TAG_LENGTH, MAX_TAGS } from "@image-hoisting/contracts";
 
 export const SETTINGS_KEY = "r2-image-settings";
 export const ADMIN_TOKEN_KEY = "r2-image-admin-token";
