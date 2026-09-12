@@ -224,10 +224,22 @@ Pull request 與推送到 `main` 時，GitHub Actions 會使用專案宣告的 p
 | `CLOUDFLARE_ACCOUNT_ID` | 擁有此 Worker 的 Cloudflare account ID |
 | `CLOUDFLARE_API_TOKEN` | 限制於該帳號、使用 Cloudflare **Edit Cloudflare Workers** policy 的 token |
 | `CLOUDFLARE_WRANGLER_CONFIG` | 個人 `wrangler.jsonc` 的完整內容 |
+| `SENTRY_AUTH_TOKEN` | 僅授權 CI 上傳 source map 的 Sentry organization token |
 
 Workflow 只會在暫時的 runner 建立 `wrangler.jsonc`；個人設定仍由 Git 忽略，pull request 也無法取得部署 secrets。
 
-另請在同一個 environment 設定一般變數 `PRODUCTION_BASE_URL`，例如 `https://your-worker.workers.dev`。部署後，workflow 會在 10 秒 timeout 內請求其 `/health`，驗證 HTTP 狀態、service 名稱與健康狀態；若檢查失敗，同一次 Actions 執行仍會保留部署輸出供查找。
+另請在同一個 environment 設定以下一般變數：
+
+| Variable | 內容 |
+| --- | --- |
+| `PRODUCTION_BASE_URL` | 已部署的 Worker 網址，例如 `https://your-worker.workers.dev` |
+| `VITE_SENTRY_DSN` | Sentry React project 的公開 browser DSN |
+| `SENTRY_ORG` | Sentry organization slug |
+| `SENTRY_PROJECT` | Sentry project slug |
+
+部署後，workflow 會在 10 秒 timeout 內請求 `/health`，驗證 HTTP 狀態、service 名稱與健康狀態；若檢查失敗，同一次 Actions 執行仍會保留部署輸出供查找。
+
+正式 Web build 使用 Git commit SHA 作為 Sentry release；source map 會在受保護的 production build 上傳，並於部署 browser assets 前刪除。Browser client 只捕捉 React render crash，不記錄 breadcrumbs、request 資料、使用者資料、local storage、檔名、tags 或管理金鑰。
 
 需要回復版本時，前往 **Cloudflare → Workers & Pages → 你的 Worker → Deployments**，找到上一個穩定版本，從選單選擇 **Rollback**。也可執行 `pnpm exec wrangler rollback <VERSION_ID> --config wrangler.jsonc --message "Rollback failed deployment"`。Worker rollback 不會回復 R2 物件或其他資源的變更。
 

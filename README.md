@@ -202,10 +202,22 @@ Configure these encrypted secrets in the GitHub `production` environment:
 | `CLOUDFLARE_ACCOUNT_ID` | The Cloudflare account that owns the Worker |
 | `CLOUDFLARE_API_TOKEN` | A token scoped to that account, using Cloudflare's **Edit Cloudflare Workers** policy |
 | `CLOUDFLARE_WRANGLER_CONFIG` | The complete contents of your private `wrangler.jsonc` |
+| `SENTRY_AUTH_TOKEN` | A Sentry organization token scoped to CI source-map uploads |
 
 The workflow creates `wrangler.jsonc` only on its temporary runner. The personal file remains ignored by Git and pull requests never receive deployment secrets.
 
-Also set `PRODUCTION_BASE_URL` as a plain environment variable, for example `https://your-worker.workers.dev`. After deployment, the workflow requests its `/health` endpoint with a 10-second timeout and verifies the HTTP status, service name, and health status. A failed check leaves the deployment output in the same Actions run for diagnosis.
+Also configure these plain environment variables:
+
+| Variable | Value |
+| --- | --- |
+| `PRODUCTION_BASE_URL` | The deployed Worker URL, for example `https://your-worker.workers.dev` |
+| `VITE_SENTRY_DSN` | The public browser DSN for the Sentry React project |
+| `SENTRY_ORG` | The Sentry organization slug |
+| `SENTRY_PROJECT` | The Sentry project slug |
+
+After deployment, the workflow requests `/health` with a 10-second timeout and verifies the HTTP status, service name, and health status. A failed check leaves the deployment output in the same Actions run for diagnosis.
+
+Production Web builds use the Git commit SHA as the Sentry release. Source maps are uploaded during the protected production build and deleted before the browser assets are deployed. The browser client captures only React render crashes; it does not record breadcrumbs, request data, user data, local storage, filenames, tags, or admin keys.
 
 To roll back, open **Cloudflare → Workers & Pages → your Worker → Deployments**, find the last stable version, open its menu, and select **Rollback**. You can also run `pnpm exec wrangler rollback <VERSION_ID> --config wrangler.jsonc --message "Rollback failed deployment"`. A Worker rollback does not undo changes to R2 objects or other resources.
 
