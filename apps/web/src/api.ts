@@ -3,7 +3,7 @@ import type { ImageList, ImagePatch, ImageProfile, ImageRecord } from "./types";
 import {
   DEFAULT_WORKSPACE_LIMITS,
   type WorkspaceLimits,
-} from "../shared/limits";
+} from "@image-hoisting/contracts";
 
 interface ApiErrorPayload {
   error?: { code?: string; message?: string };

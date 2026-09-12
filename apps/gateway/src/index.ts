@@ -9,12 +9,12 @@ import {
   workspaceLimits,
 } from "./images";
 import { publicImageProfiles } from "./profiles";
-import type { Env } from "./types";
+import type { CorsResult, Env } from "./types";
 
 const IMAGE_ROUTE = "/api/images";
+const REQUEST_ID_HEADER = "X-Request-ID";
 
-export async function handleRequest(request: Request, env: Env): Promise<Response> {
-  const cors = getCors(request, env);
+async function routeRequest(request: Request, env: Env, cors: CorsResult): Promise<Response> {
   if (!cors.allowed) {
     return error("CORS_ORIGIN_DENIED", "This origin is not allowed", 403, cors.headers);
   }
@@ -68,34 +68,53 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     return error("NOT_FOUND", "Route not found", 404, cors.headers);
   }
 
-  try {
-    if (request.method === "POST") {
-      return await uploadImage(request, env, cors.headers);
-    }
-    if (request.method === "GET") {
-      return await listImages(request, env, cors.headers);
-    }
-    if (request.method === "PATCH") {
-      return await updateImage(request, env, cors.headers);
-    }
-    if (request.method === "DELETE") {
-      return await deleteImage(request, env, cors.headers);
-    }
-  } catch (cause) {
-    const failure = cause instanceof Error
-      ? { name: cause.name, message: cause.message }
-      : { name: "UnknownError", message: String(cause) };
-    console.error("Unhandled Worker request error", {
-      method: request.method,
-      pathname: url.pathname,
-      failure,
-    });
-    return error("INTERNAL_ERROR", "An unexpected error occurred", 500, cors.headers);
-  }
+  if (request.method === "POST") return uploadImage(request, env, cors.headers);
+  if (request.method === "GET") return listImages(request, env, cors.headers);
+  if (request.method === "PATCH") return updateImage(request, env, cors.headers);
+  if (request.method === "DELETE") return deleteImage(request, env, cors.headers);
 
   const headers = new Headers(cors.headers);
   headers.set("Allow", "GET, POST, PATCH, DELETE, OPTIONS");
   return error("METHOD_NOT_ALLOWED", "Method not allowed", 405, headers);
+}
+
+function withRequestId(response: Response, requestId: string): Response {
+  const headers = new Headers(response.headers);
+  headers.set(REQUEST_ID_HEADER, requestId);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+export async function handleRequest(request: Request, env: Env): Promise<Response> {
+  const requestId = request.headers.get("CF-Ray")?.trim() || crypto.randomUUID();
+  const rawPathname = new URL(request.url).pathname;
+  const pathname = rawPathname.startsWith("/images/")
+    ? "/images/:key"
+    : rawPathname.startsWith("/profile-images/")
+      ? "/profile-images/:profile/:key"
+      : rawPathname;
+  let corsHeaders: Headers | undefined;
+
+  try {
+    const cors = getCors(request, env);
+    corsHeaders = cors.headers;
+    return withRequestId(await routeRequest(request, env, cors), requestId);
+  } catch (cause) {
+    console.error("Unhandled Gateway request error", {
+      requestId,
+      method: request.method,
+      pathname,
+      status: 500,
+      error: cause instanceof Error ? "Error" : "NonErrorThrow",
+    });
+    return withRequestId(
+      error("INTERNAL_ERROR", "An unexpected error occurred", 500, corsHeaders),
+      requestId,
+    );
+  }
 }
 
 export default {

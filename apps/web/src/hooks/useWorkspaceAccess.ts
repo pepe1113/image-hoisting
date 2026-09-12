@@ -13,7 +13,7 @@ import type { ImageProfile } from "../types";
 import {
   DEFAULT_WORKSPACE_LIMITS,
   type WorkspaceLimits,
-} from "../../shared/limits";
+} from "@image-hoisting/contracts";
 
 interface UseWorkspaceAccessOptions {
   activeProfileId: string;

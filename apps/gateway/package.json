@@ -1,0 +1,13 @@
+{
+  "name": "@image-hoisting/gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --config ../../wrangler.jsonc --port 8787 --var PUBLIC_BASE_URL:http://localhost:8787/images",
+    "deploy": "wrangler deploy --config ../../wrangler.jsonc"
+  },
+  "dependencies": {
+    "@image-hoisting/contracts": "workspace:*"
+  }
+}

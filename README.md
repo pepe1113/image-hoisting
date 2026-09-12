@@ -3,7 +3,7 @@
 
 
 <p align="center">
-  <img src="public/icon.png" height="100" style="border-radius:20px;margin:30px 0;">
+  <img src="apps/web/public/icon.png" height="100" style="border-radius:20px;margin:30px 0;">
   <h1 align="center">R2 Image Hosting</h1>
 </p>
 
@@ -30,6 +30,7 @@ A small self-hosted image upload tool for blogs, documentation, and Markdown pos
 - [API](#api)
 - [Security and Privacy](#security-and-privacy)
 - [Commands](#commands)
+- [CI and deployment](#ci-and-deployment)
 - [Deploy](#deploy)
 - [License](#license)
 
@@ -37,7 +38,7 @@ A small self-hosted image upload tool for blogs, documentation, and Markdown pos
 Drop or paste an image into the page, optimize it in the browser, upload it to Cloudflare R2, and copy the Markdown or image URL immediately.
 
 <p align="center">
-  <img src="./public/demo.gif" alt="R2 Image Hosting upload workspace" width="500" />
+  <img src="./apps/web/public/demo.gif" alt="R2 Image Hosting upload workspace" width="500" />
 </p>
 
 
@@ -70,6 +71,8 @@ Drop or paste an image into the page, optimize it in the browser, upload it to C
 | Vitest | Automated tests |
 
 The browser runtime dependencies are React and ReactDOM; image processing uses native browser APIs without a separate image codec dependency.
+
+The pnpm workspace contains only `apps/web`, `apps/gateway`, and `packages/contracts`. The Gateway Worker remains the single public entry point and deploys the Web assets and API together; Contracts contains only data, limits, and error shapes shared by those two apps.
 
 [Image processing benchmark](docs/image-processing-benchmark.md)
 
@@ -184,6 +187,20 @@ Every `/api/*` route requires `Authorization: Bearer <ADMIN_TOKEN>`. Public imag
 | `pnpm typecheck` | Checks TypeScript types |
 | `pnpm check` | Runs lint, type checking, tests, and the production build |
 | `pnpm deploy` | Deploys the Worker to Cloudflare |
+
+## CI and deployment
+
+Pull requests and pushes to `main` install the declared pnpm version with the Node version in `.nvmrc`, use the frozen lockfile, and run `pnpm check`. After that check succeeds on `main`, the same workflow deploys the Web assets and Gateway Worker together.
+
+Configure these encrypted secrets in the GitHub `production` environment:
+
+| Secret | Value |
+| --- | --- |
+| `CLOUDFLARE_ACCOUNT_ID` | The Cloudflare account that owns the Worker |
+| `CLOUDFLARE_API_TOKEN` | A token scoped to that account, using Cloudflare's **Edit Cloudflare Workers** policy |
+| `CLOUDFLARE_WRANGLER_CONFIG` | The complete contents of your private `wrangler.jsonc` |
+
+The workflow creates `wrangler.jsonc` only on its temporary runner. The personal file remains ignored by Git and pull requests never receive deployment secrets.
 
 ## Deploy
 
