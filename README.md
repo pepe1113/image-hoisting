@@ -192,6 +192,8 @@ Every `/api/*` route requires `Authorization: Bearer <ADMIN_TOKEN>`. Public imag
 
 Pull requests and pushes to `main` install the declared pnpm version with the Node version in `.nvmrc`, use the frozen lockfile, and run `pnpm check`. After that check succeeds on `main`, the same workflow deploys the Web assets and Gateway Worker together.
 
+Installing dependencies also initializes a Husky pre-push hook that runs the same `pnpm check`; GitHub CI remains the authoritative gate.
+
 Configure these encrypted secrets in the GitHub `production` environment:
 
 | Secret | Value |

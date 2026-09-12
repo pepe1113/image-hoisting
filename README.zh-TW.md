@@ -214,6 +214,8 @@ npx wrangler secret put ADMIN_TOKEN
 
 Pull request 與推送到 `main` 時，GitHub Actions 會使用專案宣告的 pnpm 版本、`.nvmrc` 的 Node 版本及 frozen lockfile 執行 `pnpm check`。只有 `main` 的檢查成功後，同一個 workflow 才會一起部署 Web assets 與 Gateway Worker。
 
+安裝依賴時也會初始化 Husky pre-push hook，直接執行相同的 `pnpm check`；GitHub CI 仍是最終權威檢查。
+
 請在 GitHub 的 `production` environment 設定以下加密 secrets：
 
 | Secret | 內容 |
