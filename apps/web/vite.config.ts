@@ -19,6 +19,9 @@ export default defineConfig(({ mode }) => {
           release: { name: env.SENTRY_RELEASE! },
           sourcemaps: { filesToDeleteAfterUpload: ["./dist/**/*.map"] },
           telemetry: false,
+          errorHandler(error) {
+            throw error;
+          },
         }),
     ],
     build: {
