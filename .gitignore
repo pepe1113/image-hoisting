@@ -12,6 +12,7 @@ dist/
 *.log
 
 # agents
+docs/
 AGENTS.md
 .agents/
 
