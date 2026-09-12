@@ -5,8 +5,9 @@ import {
   DEFAULT_MAX_UPLOAD_BYTES,
   MAX_TAG_LENGTH,
   MAX_TAGS,
+  type ImageRecord,
   type WorkspaceLimits,
-} from "./shared/limits";
+} from "@image-hoisting/contracts";
 import type { Env, ResolvedImageProfile } from "./types";
 
 const DEFAULT_LIST_LIMIT = 50;
@@ -29,21 +30,7 @@ const MIME_EXTENSIONS = {
 
 type AllowedImageMime = keyof typeof MIME_EXTENSIONS;
 
-interface ImageData {
-  profileId: string;
-  key: string;
-  url: string;
-  size: number;
-  etag: string;
-  contentType: string | null;
-  originalName: string | null;
-  filename: string;
-  tags: string[];
-  uploadedAt: string;
-  width: number | null;
-  height: number | null;
-  folder: string | null;
-}
+type ImageData = ImageRecord;
 
 function isAllowedImageMime(value: string): value is AllowedImageMime {
   return Object.prototype.hasOwnProperty.call(MIME_EXTENSIONS, value);

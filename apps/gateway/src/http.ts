@@ -1,4 +1,5 @@
 import type { CorsResult, Env } from "./types";
+import type { ApiErrorResponse } from "@image-hoisting/contracts";
 
 const CORS_METHODS = "GET, POST, PATCH, DELETE, OPTIONS";
 const CORS_HEADERS = "Authorization, Content-Type";
@@ -42,5 +43,5 @@ export function error(
   status: number,
   headers?: Headers,
 ): Response {
-  return json({ error: { code, message } }, status, headers);
+  return json({ error: { code, message } } satisfies ApiErrorResponse, status, headers);
 }

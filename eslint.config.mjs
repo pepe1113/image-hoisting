@@ -3,7 +3,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["coverage", "dist", "node_modules", ".wrangler"],
+    ignores: ["coverage", "**/dist", "node_modules", "**/.wrangler"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -31,7 +31,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["public/**/*.js"],
+    files: ["**/public/**/*.js"],
     languageOptions: {
       globals: {
         FormData: "readonly",

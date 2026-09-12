@@ -1,7 +1,7 @@
 import { Modal } from "../../components/Modal";
 import { TagEditor } from "../../components/TagEditor";
 import type { ImageLibraryController } from "./useImageLibrary";
-import type { WorkspaceLimits } from "../../../shared/limits";
+import type { WorkspaceLimits } from "@image-hoisting/contracts";
 
 interface ImageDialogsProps {
   library: ImageLibraryController;
