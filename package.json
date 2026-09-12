@@ -13,7 +13,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config apps/web/vite.config.ts --root .",
-    "check": "pnpm run lint && pnpm run typecheck && pnpm test && pnpm run build"
+    "check": "pnpm run lint && pnpm run typecheck && pnpm test && node scripts/health-smoke.mjs --self-test && pnpm run build",
+    "smoke": "node scripts/health-smoke.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260821.1",

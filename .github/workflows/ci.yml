@@ -44,3 +44,7 @@ jobs:
           test -n "$WRANGLER_CONFIG"
           printf '%s' "$WRANGLER_CONFIG" > wrangler.jsonc
           pnpm --filter @image-hoisting/gateway deploy
+      - name: Verify production health
+        env:
+          PRODUCTION_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
+        run: pnpm smoke

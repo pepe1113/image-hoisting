@@ -208,6 +208,7 @@ npx wrangler secret put ADMIN_TOKEN
 | `pnpm lint` | 檢查程式碼格式與規則 |
 | `pnpm typecheck` | 檢查 TypeScript 型別 |
 | `pnpm check` | 執行 lint、型別檢查、測試與正式建置 |
+| `pnpm smoke` | 檢查設定的正式環境 `/health` endpoint |
 | `pnpm deploy` | 部署 Worker 至 Cloudflare |
 
 ## CI 與部署
@@ -225,6 +226,10 @@ Pull request 與推送到 `main` 時，GitHub Actions 會使用專案宣告的 p
 | `CLOUDFLARE_WRANGLER_CONFIG` | 個人 `wrangler.jsonc` 的完整內容 |
 
 Workflow 只會在暫時的 runner 建立 `wrangler.jsonc`；個人設定仍由 Git 忽略，pull request 也無法取得部署 secrets。
+
+另請在同一個 environment 設定一般變數 `PRODUCTION_BASE_URL`，例如 `https://your-worker.workers.dev`。部署後，workflow 會在 10 秒 timeout 內請求其 `/health`，驗證 HTTP 狀態、service 名稱與健康狀態；若檢查失敗，同一次 Actions 執行仍會保留部署輸出供查找。
+
+需要回復版本時，前往 **Cloudflare → Workers & Pages → 你的 Worker → Deployments**，找到上一個穩定版本，從選單選擇 **Rollback**。也可執行 `pnpm exec wrangler rollback <VERSION_ID> --config wrangler.jsonc --message "Rollback failed deployment"`。Worker rollback 不會回復 R2 物件或其他資源的變更。
 
 
 ## Security and Privacy

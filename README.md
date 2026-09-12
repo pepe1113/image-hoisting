@@ -186,6 +186,7 @@ Every `/api/*` route requires `Authorization: Bearer <ADMIN_TOKEN>`. Public imag
 | `pnpm lint` | Checks the code style |
 | `pnpm typecheck` | Checks TypeScript types |
 | `pnpm check` | Runs lint, type checking, tests, and the production build |
+| `pnpm smoke` | Checks the configured production `/health` endpoint |
 | `pnpm deploy` | Deploys the Worker to Cloudflare |
 
 ## CI and deployment
@@ -203,6 +204,10 @@ Configure these encrypted secrets in the GitHub `production` environment:
 | `CLOUDFLARE_WRANGLER_CONFIG` | The complete contents of your private `wrangler.jsonc` |
 
 The workflow creates `wrangler.jsonc` only on its temporary runner. The personal file remains ignored by Git and pull requests never receive deployment secrets.
+
+Also set `PRODUCTION_BASE_URL` as a plain environment variable, for example `https://your-worker.workers.dev`. After deployment, the workflow requests its `/health` endpoint with a 10-second timeout and verifies the HTTP status, service name, and health status. A failed check leaves the deployment output in the same Actions run for diagnosis.
+
+To roll back, open **Cloudflare → Workers & Pages → your Worker → Deployments**, find the last stable version, open its menu, and select **Rollback**. You can also run `pnpm exec wrangler rollback <VERSION_ID> --config wrangler.jsonc --message "Rollback failed deployment"`. A Worker rollback does not undo changes to R2 objects or other resources.
 
 ## Deploy
 
