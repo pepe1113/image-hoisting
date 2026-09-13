@@ -21,7 +21,6 @@ interface UseUploadOptions {
   setNotice: (message: string) => void;
   setToast: (message: string) => void;
   requestErrorMessage: (error: unknown, fallback: string) => string;
-  onUploaded: () => void;
 }
 
 export interface UploadController {
@@ -72,7 +71,6 @@ export function useUpload({
   setNotice,
   setToast,
   requestErrorMessage,
-  onUploaded,
 }: UseUploadOptions): UploadController {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [displayFilename, setDisplayFilename] = useState("");
@@ -197,7 +195,6 @@ export function useUpload({
       setUploadResult(image);
       setToast(`${image.filename} uploaded and ready to copy.`);
       clearSelection();
-      onUploaded();
     } catch (error) {
       setNotice(requestErrorMessage(error, "Upload failed."));
       setProgress(null);

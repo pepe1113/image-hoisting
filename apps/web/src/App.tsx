@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { AppHeader } from "./components/AppHeader";
 import { AdminKeyDialog } from "./features/auth/AdminKeyDialog";
-import { ImageDialogs } from "./features/library/ImageDialogs";
-import { LibraryPanel } from "./features/library/LibraryPanel";
-import { useImageLibrary } from "./features/library/useImageLibrary";
+import { ImageLibrary } from "./features/library/ImageLibrary";
 import { ProfileSetupDialog } from "./features/profiles/ProfileSetupDialog";
 import { UploadPanel } from "./features/upload/UploadPanel";
 import { useUpload } from "./features/upload/useUpload";
@@ -23,15 +21,6 @@ export function App() {
     setNotice: notifications.setNotice,
     setToast: notifications.setToast,
   });
-  const library = useImageLibrary({
-    enabled: tab !== "upload",
-    token: access.token,
-    profileId: settings.activeProfileId,
-    setNotice: notifications.setNotice,
-    setToast: notifications.setToast,
-    copyText: notifications.copyText,
-    requestErrorMessage: access.requestErrorMessage,
-  });
   const upload = useUpload({
     token: access.token,
     profileId: settings.activeProfileId,
@@ -40,13 +29,11 @@ export function App() {
     setNotice: notifications.setNotice,
     setToast: notifications.setToast,
     requestErrorMessage: access.requestErrorMessage,
-    onUploaded: library.refresh,
   });
   const profileLabel = access.activeProfile?.label ?? "R2";
 
   function changeProfile(profileId: string): void {
     settings.setActiveProfileId(profileId);
-    library.resetForProfile();
     upload.reset();
     notifications.setNotice("");
   }
@@ -85,14 +72,20 @@ export function App() {
           activeProfileLabel={access.activeProfile?.label ?? "your R2 bucket"}
           onCopy={notifications.copyText}
         />
-      ) : (
-        <LibraryPanel
-          library={library}
-          profileLabel={profileLabel}
-          view={tab === "gallery" ? "grid" : "list"}
-          onCopy={notifications.copyText}
-        />
-      )}
+      ) : null}
+      <ImageLibrary
+        key={settings.activeProfileId}
+        enabled={tab !== "upload"}
+        token={access.token}
+        profileId={settings.activeProfileId}
+        profileLabel={profileLabel}
+        limits={access.limits}
+        view={tab === "gallery" ? "grid" : "list"}
+        setNotice={notifications.setNotice}
+        setToast={notifications.setToast}
+        copyText={notifications.copyText}
+        requestErrorMessage={access.requestErrorMessage}
+      />
 
       <footer className="app-footer">
         <span>
@@ -131,11 +124,6 @@ export function App() {
           onClose={() => setProfileSetupOpen(false)}
         />
       ) : null}
-      <ImageDialogs
-        library={library}
-        profileLabel={profileLabel}
-        limits={access.limits}
-      />
       {notifications.toast ? (
         <div className="toast" role="status" aria-live="polite">
           {notifications.toast}
