@@ -19,7 +19,8 @@ export function ProcessingDialog({
 }: ProcessingDialogProps) {
   const dimensions =
     prepared.sourceWidth && prepared.sourceHeight
-      ? `${prepared.sourceWidth}×${prepared.sourceHeight} → ${prepared.outputWidth}×${prepared.outputHeight}`
+      ? `${prepared.sourceWidth}×${prepared.sourceHeight} → ` +
+        `${prepared.outputWidth}×${prepared.outputHeight}`
       : "Original dimensions preserved";
   const saving =
     prepared.savedPercent >= 0

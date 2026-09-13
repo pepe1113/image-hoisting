@@ -1,17 +1,16 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useReducer, useState, type FormEvent } from "react";
 import { uploadImage } from "../../api";
 import {
+  calculateTargetSize,
   extensionForFile,
   formatBytes,
   generatedFilename,
   MAX_SOURCE_BYTES,
+  PROCESSING_PRESETS,
 } from "../../core";
 import { prepareImage } from "../../image-processing";
-import type {
-  ImageRecord,
-  PreparedImage,
-  ProfilePreferences,
-} from "../../types";
+import type { ProcessingPreset, ProfilePreferences } from "../../types";
+import { initialUploadState, uploadReducer } from "./uploadState";
 
 interface UseUploadOptions {
   token: string;
@@ -21,30 +20,7 @@ interface UseUploadOptions {
   setNotice: (message: string) => void;
   setToast: (message: string) => void;
   requestErrorMessage: (error: unknown, fallback: string) => string;
-}
-
-export interface UploadController {
-  selectedFile: File | null;
-  displayFilename: string;
-  autoNamed: boolean;
-  uploadTags: string[];
-  prepared: PreparedImage | null;
-  preparing: boolean;
-  progress: number | null;
-  uploadResult: ImageRecord | null;
-  dragging: boolean;
-  previewUrl: string;
-  setDisplayFilename: (filename: string) => void;
-  setAutoNamed: (autoNamed: boolean) => void;
-  setUploadTags: (tags: string[]) => void;
-  setPrepared: (prepared: PreparedImage | null) => void;
-  setDragging: (dragging: boolean) => void;
-  selectFile: (file: File) => void;
-  clearSelection: () => void;
-  reset: () => void;
-  generateName: () => string;
-  handlePrepare: (event: FormEvent) => Promise<void>;
-  startUpload: (useProcessed: boolean) => Promise<void>;
+  onPreferences: (preferences: ProfilePreferences) => void;
 }
 
 function useObjectUrl(file: File | null): string {
@@ -71,31 +47,39 @@ export function useUpload({
   setNotice,
   setToast,
   requestErrorMessage,
-}: UseUploadOptions): UploadController {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [displayFilename, setDisplayFilename] = useState("");
-  const [autoNamed, setAutoNamed] = useState(false);
-  const [uploadTags, setUploadTags] = useState<string[]>([]);
-  const [prepared, setPrepared] = useState<PreparedImage | null>(null);
-  const [preparing, setPreparing] = useState(false);
-  const [progress, setProgress] = useState<number | null>(null);
-  const [uploadResult, setUploadResult] = useState<ImageRecord | null>(null);
-  const [dragging, setDragging] = useState(false);
-  const previewUrl = useObjectUrl(selectedFile);
+  onPreferences,
+}: UseUploadOptions) {
+  const [state, dispatch] = useReducer(uploadReducer, initialUploadState);
+  const previewUrl = useObjectUrl(state.selectedFile);
+  const sourceDimensions =
+    state.measuredImage?.file === state.selectedFile
+      ? state.measuredImage
+      : null;
+  const isGif = state.selectedFile?.type === "image/gif";
+  const effectiveOutputFormat = isGif ? "original" : preferences.outputFormat;
+  const processingDisabled = isGif || effectiveOutputFormat === "original";
+  const outputDimensions = sourceDimensions
+    ? processingDisabled
+      ? { width: sourceDimensions.width, height: sourceDimensions.height }
+      : calculateTargetSize(
+          sourceDimensions.width,
+          sourceDimensions.height,
+          preferences.maxDimension,
+        )
+    : null;
 
-  function selectFile(file: File): void {
-    if (file.size > MAX_SOURCE_BYTES) {
-      setNotice("The source image cannot exceed 40 MiB.");
-      return;
-    }
-    setSelectedFile(file);
-    setDisplayFilename("");
-    setAutoNamed(false);
-    setUploadTags([]);
-    setPrepared(null);
-    setProgress(null);
-    setNotice("");
-  }
+  const acceptFile = useCallback(
+    (file: File, pasted = false): void => {
+      if (file.size > MAX_SOURCE_BYTES) {
+        setNotice("The source image cannot exceed 40 MiB.");
+        return;
+      }
+      dispatch({ type: "fileSelected", file });
+      setNotice("");
+      if (pasted) setToast("Image pasted and ready to upload");
+    },
+    [setNotice, setToast],
+  );
 
   useEffect(() => {
     function onPaste(event: ClipboardEvent): void {
@@ -104,124 +88,121 @@ export function useUpload({
       );
       if (!file) return;
       event.preventDefault();
-      if (file.size > MAX_SOURCE_BYTES) {
-        setNotice("The source image cannot exceed 40 MiB.");
-        return;
-      }
-      setSelectedFile(file);
-      setDisplayFilename("");
-      setAutoNamed(false);
-      setUploadTags([]);
-      setPrepared(null);
-      setProgress(null);
-      setNotice("");
-      setToast("Image pasted and ready to upload");
+      acceptFile(file, true);
     }
 
     document.addEventListener("paste", onPaste);
     return () => document.removeEventListener("paste", onPaste);
-  }, [setNotice, setToast]);
+  }, [acceptFile]);
 
-  function clearSelection(): void {
-    setSelectedFile(null);
-    setDisplayFilename("");
-    setAutoNamed(false);
-    setUploadTags([]);
-    setPrepared(null);
-    setProgress(null);
-  }
-
-  function reset(): void {
-    clearSelection();
-    setUploadResult(null);
-    setDragging(false);
-  }
-
-  function generateName(): string {
-    if (!selectedFile) return "";
+  function generatedName(file = state.selectedFile): string {
+    if (!file) return "";
     const extension =
-      preferences.outputFormat === "original" ||
-      selectedFile.type === "image/gif"
-        ? extensionForFile(selectedFile)
+      preferences.outputFormat === "original" || file.type === "image/gif"
+        ? extensionForFile(file)
         : "webp";
-    const name = generatedFilename(extension);
-    setDisplayFilename(name);
-    setAutoNamed(true);
-    return name;
+    return generatedFilename(extension);
+  }
+
+  function generateName(): void {
+    dispatch({
+      type: "filenameChanged",
+      filename: generatedName(),
+      autoNamed: true,
+    });
   }
 
   async function handlePrepare(event: FormEvent): Promise<void> {
     event.preventDefault();
-    if (!selectedFile) return;
-    setPreparing(true);
+    if (!state.selectedFile) return;
+    dispatch({ type: "preparationStarted" });
     setNotice("");
-    if (!displayFilename.trim()) generateName();
+    if (!state.displayFilename.trim()) generateName();
     try {
-      setPrepared(await prepareImage(selectedFile, preferences));
+      const prepared = await prepareImage(state.selectedFile, preferences);
+      dispatch({ type: "preparationFinished", prepared });
     } catch (error) {
+      dispatch({ type: "preparationFinished", prepared: null });
       setNotice(
         error instanceof Error ? error.message : "Image processing failed.",
       );
-    } finally {
-      setPreparing(false);
     }
   }
 
   async function startUpload(useProcessed: boolean): Promise<void> {
-    if (!prepared) return;
-    const file = useProcessed ? prepared.processed : prepared.source;
+    if (!state.prepared) return;
+    const file = useProcessed
+      ? state.prepared.processed
+      : state.prepared.source;
     if (file.size > maxUploadBytes) {
-      setNotice(`The selected upload exceeds the ${formatBytes(maxUploadBytes)} limit.`);
+      setNotice(
+        `The selected upload exceeds the ${formatBytes(maxUploadBytes)} limit.`,
+      );
       return;
     }
-    let filename = displayFilename.trim();
-    if (!filename) filename = generateName();
-    if (autoNamed) {
+    let filename = state.displayFilename.trim() || generatedName(file);
+    if (state.autoNamed) {
       filename = filename.replace(/\.[^.]*$/u, `.${extensionForFile(file)}`);
     }
-    setDisplayFilename(filename);
-    setPrepared(null);
-    setProgress(0);
+    dispatch({ type: "uploadStarted", filename });
     try {
       const image = await uploadImage(
         token,
         profileId,
         file,
         filename,
-        uploadTags,
-        setProgress,
+        state.tags,
+        (progress) => dispatch({ type: "uploadProgressed", progress }),
       );
-      setProgress(100);
-      setUploadResult(image);
+      dispatch({ type: "uploadSucceeded", image });
       setToast(`${image.filename} uploaded and ready to copy.`);
-      clearSelection();
     } catch (error) {
+      dispatch({ type: "uploadFailed" });
       setNotice(requestErrorMessage(error, "Upload failed."));
-      setProgress(null);
     }
   }
 
   return {
-    selectedFile,
-    displayFilename,
-    autoNamed,
-    uploadTags,
-    prepared,
-    preparing,
-    progress,
-    uploadResult,
-    dragging,
-    previewUrl,
-    setDisplayFilename,
-    setAutoNamed,
-    setUploadTags,
-    setPrepared,
-    setDragging,
-    selectFile,
-    clearSelection,
-    reset,
-    generateName,
-    handlePrepare,
-    startUpload,
+    view: {
+      ...state,
+      previewUrl,
+      sourceDimensions,
+      outputDimensions,
+      isGif,
+      effectiveOutputFormat,
+      processingDisabled,
+    },
+    actions: {
+      selectFile: acceptFile,
+      clearSelection: () => dispatch({ type: "selectionCleared" }),
+      setDisplayFilename: (filename: string) =>
+        dispatch({ type: "filenameChanged", filename, autoNamed: false }),
+      setTags: (tags: string[]) => dispatch({ type: "tagsChanged", tags }),
+      setDragging: (dragging: boolean) =>
+        dispatch({ type: "draggingChanged", dragging }),
+      setDimensions: (file: File, width: number, height: number) =>
+        dispatch({
+          type: "dimensionsMeasured",
+          measuredImage: { file, width, height },
+        }),
+      generateName,
+      handlePrepare,
+      cancelPreparation: () => dispatch({ type: "preparationCancelled" }),
+      startUpload,
+      setPreset: (preset: ProcessingPreset) =>
+        onPreferences({
+          ...preferences,
+          ...(preset === "custom" ? {} : PROCESSING_PRESETS[preset]),
+          processingPreset: preset,
+        }),
+      customize: (changes: Partial<ProfilePreferences>) =>
+        onPreferences({
+          ...preferences,
+          ...changes,
+          processingPreset: "custom",
+        }),
+    },
   };
 }
+
+export type UploadSession = ReturnType<typeof useUpload>;

@@ -14,3 +14,7 @@ _Avoid_: History
 **Image Library session**:
 A user's current Image Library interaction state, including filters, pagination, selection, and pending edits or batch actions.
 _Avoid_: Controller
+
+**Upload session**:
+A user's current path from selecting one source image through preparation and upload completion within a Profile.
+_Avoid_: Upload controller

@@ -3,8 +3,7 @@ import { AppHeader } from "./components/AppHeader";
 import { AdminKeyDialog } from "./features/auth/AdminKeyDialog";
 import { ImageLibrary } from "./features/library/ImageLibrary";
 import { ProfileSetupDialog } from "./features/profiles/ProfileSetupDialog";
-import { UploadPanel } from "./features/upload/UploadPanel";
-import { useUpload } from "./features/upload/useUpload";
+import { Upload } from "./features/upload/Upload";
 import { useNotifications } from "./hooks/useNotifications";
 import { useSettings } from "./hooks/useSettings";
 import { useWorkspaceAccess } from "./hooks/useWorkspaceAccess";
@@ -21,20 +20,10 @@ export function App() {
     setNotice: notifications.setNotice,
     setToast: notifications.setToast,
   });
-  const upload = useUpload({
-    token: access.token,
-    profileId: settings.activeProfileId,
-    preferences: settings.preferences,
-    maxUploadBytes: access.limits.maxUploadBytes,
-    setNotice: notifications.setNotice,
-    setToast: notifications.setToast,
-    requestErrorMessage: access.requestErrorMessage,
-  });
   const profileLabel = access.activeProfile?.label ?? "R2";
 
   function changeProfile(profileId: string): void {
     settings.setActiveProfileId(profileId);
-    upload.reset();
     notifications.setNotice("");
   }
 
@@ -61,20 +50,23 @@ export function App() {
         </div>
       ) : null}
 
-      {tab === "upload" ? (
-        <UploadPanel
-          upload={upload}
-          preferences={settings.preferences}
-          profileLabel={profileLabel}
-          limits={access.limits}
-          onPreferences={settings.updatePreferences}
-          profileId={settings.activeProfileId}
-          activeProfileLabel={access.activeProfile?.label ?? "your R2 bucket"}
-          onCopy={notifications.copyText}
-        />
-      ) : null}
+      <Upload
+        key={`upload:${settings.activeProfileId}`}
+        enabled={tab === "upload"}
+        token={access.token}
+        profileId={settings.activeProfileId}
+        profileLabel={profileLabel}
+        activeProfileLabel={access.activeProfile?.label ?? "your R2 bucket"}
+        limits={access.limits}
+        preferences={settings.preferences}
+        onPreferences={settings.updatePreferences}
+        setNotice={notifications.setNotice}
+        setToast={notifications.setToast}
+        requestErrorMessage={access.requestErrorMessage}
+        onCopy={notifications.copyText}
+      />
       <ImageLibrary
-        key={settings.activeProfileId}
+        key={`library:${settings.activeProfileId}`}
         enabled={tab !== "upload"}
         token={access.token}
         profileId={settings.activeProfileId}
