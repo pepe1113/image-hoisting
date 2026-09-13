@@ -18,3 +18,7 @@ _Avoid_: Controller
 **Upload session**:
 A user's current path from selecting one source image through preparation and upload completion within a Profile.
 _Avoid_: Upload controller
+
+**Stored Image**:
+An image object and its validated descriptive metadata inside one Profile.
+_Avoid_: File record, R2 item
