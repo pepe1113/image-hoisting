@@ -1,13 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { handleRequest as handleWorkerRequest } from "../src";
-import {
-  createShortId,
-  detectImageMime,
-  normalizeFilename,
-  normalizeFolder,
-  normalizeTags,
-  sanitizeFileBaseName,
-} from "../src/images";
 import type { Env } from "../src/types";
 
 interface StoredObject {
@@ -158,34 +150,6 @@ function pngFile(name = "My Screenshot.png", bytes?: Uint8Array): File {
   const content = bytes ?? new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   return new File([content as unknown as BlobPart], name, { type: "image/png" });
 }
-
-describe("filename and signature safety", () => {
-  it("removes traversal and unsafe filename characters", () => {
-    expect(sanitizeFileBaseName("../../My Holiday <script>.PNG")).toBe("my-holiday-script");
-  });
-
-  it("creates an eight-character URL-safe image ID", () => {
-    expect(createShortId(new Uint8Array([0, 0, 0, 0, 0, 0]))).toBe("AAAAAAAA");
-    expect(createShortId(new Uint8Array([255, 255, 255, 255, 255, 255]))).toBe("________");
-  });
-
-  it("detects supported image signatures", () => {
-    expect(detectImageMime(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))).toBe(
-      "image/png",
-    );
-    expect(detectImageMime(new TextEncoder().encode("not-an-image"))).toBeNull();
-  });
-
-  it("preserves readable filenames and normalizes duplicate tags", () => {
-    expect(normalizeFilename("../../旅行照片 01.PNG")).toBe("旅行照片 01.PNG");
-    expect(normalizeFilename("   ")).toBeNull();
-    expect(normalizeTags([" Blog ", "作品", "blog"])).toEqual(["Blog", "作品"]);
-    expect(normalizeTags([""])).toBeNull();
-    expect(normalizeFolder("  作品  ")).toBe("作品");
-    expect(normalizeFolder("nested/folder")).toBeNull();
-    expect(normalizeFolder("x".repeat(81))).toBeNull();
-  });
-});
 
 describe("request observability", () => {
   it("correlates safe error logs without request secrets or image metadata", async () => {

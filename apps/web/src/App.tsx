@@ -1,12 +1,9 @@
 import { useState } from "react";
 import { AppHeader } from "./components/AppHeader";
 import { AdminKeyDialog } from "./features/auth/AdminKeyDialog";
-import { ImageDialogs } from "./features/library/ImageDialogs";
-import { LibraryPanel } from "./features/library/LibraryPanel";
-import { useImageLibrary } from "./features/library/useImageLibrary";
+import { ImageLibrary } from "./features/library/ImageLibrary";
 import { ProfileSetupDialog } from "./features/profiles/ProfileSetupDialog";
-import { UploadPanel } from "./features/upload/UploadPanel";
-import { useUpload } from "./features/upload/useUpload";
+import { Upload } from "./features/upload/Upload";
 import { useNotifications } from "./hooks/useNotifications";
 import { useSettings } from "./hooks/useSettings";
 import { useWorkspaceAccess } from "./hooks/useWorkspaceAccess";
@@ -23,31 +20,10 @@ export function App() {
     setNotice: notifications.setNotice,
     setToast: notifications.setToast,
   });
-  const library = useImageLibrary({
-    enabled: tab !== "upload",
-    token: access.token,
-    profileId: settings.activeProfileId,
-    setNotice: notifications.setNotice,
-    setToast: notifications.setToast,
-    copyText: notifications.copyText,
-    requestErrorMessage: access.requestErrorMessage,
-  });
-  const upload = useUpload({
-    token: access.token,
-    profileId: settings.activeProfileId,
-    preferences: settings.preferences,
-    maxUploadBytes: access.limits.maxUploadBytes,
-    setNotice: notifications.setNotice,
-    setToast: notifications.setToast,
-    requestErrorMessage: access.requestErrorMessage,
-    onUploaded: library.refresh,
-  });
   const profileLabel = access.activeProfile?.label ?? "R2";
 
   function changeProfile(profileId: string): void {
     settings.setActiveProfileId(profileId);
-    library.resetForProfile();
-    upload.reset();
     notifications.setNotice("");
   }
 
@@ -74,25 +50,34 @@ export function App() {
         </div>
       ) : null}
 
-      {tab === "upload" ? (
-        <UploadPanel
-          upload={upload}
-          preferences={settings.preferences}
-          profileLabel={profileLabel}
-          limits={access.limits}
-          onPreferences={settings.updatePreferences}
-          profileId={settings.activeProfileId}
-          activeProfileLabel={access.activeProfile?.label ?? "your R2 bucket"}
-          onCopy={notifications.copyText}
-        />
-      ) : (
-        <LibraryPanel
-          library={library}
-          profileLabel={profileLabel}
-          view={tab === "gallery" ? "grid" : "list"}
-          onCopy={notifications.copyText}
-        />
-      )}
+      <Upload
+        key={`upload:${settings.activeProfileId}`}
+        enabled={tab === "upload"}
+        token={access.token}
+        profileId={settings.activeProfileId}
+        profileLabel={profileLabel}
+        activeProfileLabel={access.activeProfile?.label ?? "your R2 bucket"}
+        limits={access.limits}
+        preferences={settings.preferences}
+        onPreferences={settings.updatePreferences}
+        setNotice={notifications.setNotice}
+        setToast={notifications.setToast}
+        requestErrorMessage={access.requestErrorMessage}
+        onCopy={notifications.copyText}
+      />
+      <ImageLibrary
+        key={`library:${settings.activeProfileId}`}
+        enabled={tab !== "upload"}
+        token={access.token}
+        profileId={settings.activeProfileId}
+        profileLabel={profileLabel}
+        limits={access.limits}
+        view={tab === "gallery" ? "grid" : "list"}
+        setNotice={notifications.setNotice}
+        setToast={notifications.setToast}
+        copyText={notifications.copyText}
+        requestErrorMessage={access.requestErrorMessage}
+      />
 
       <footer className="app-footer">
         <span>
@@ -131,11 +116,6 @@ export function App() {
           onClose={() => setProfileSetupOpen(false)}
         />
       ) : null}
-      <ImageDialogs
-        library={library}
-        profileLabel={profileLabel}
-        limits={access.limits}
-      />
       {notifications.toast ? (
         <div className="toast" role="status" aria-live="polite">
           {notifications.toast}

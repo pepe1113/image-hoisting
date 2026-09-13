@@ -6,9 +6,17 @@
 
 @use 'components/forms';
 @use 'components/buttons';
-@use 'components/upload';
+@use 'components/upload/drop-zone';
+@use 'components/upload/processing';
+@use 'components/upload/selection';
+@use 'components/upload/result';
 @use 'components/modals';
-@use 'components/library';
+@use 'components/library/controls';
+@use 'components/library/rows-core';
+@use 'components/library/row-actions';
+@use 'components/library/gallery';
+@use 'components/library/states';
+@use 'components/library/responsive' as library-responsive;
 @use 'components/dialogs';
 
 @use 'pages/responsive';

@@ -1,27 +1,34 @@
 import { Modal } from "../../components/Modal";
 import { TagEditor } from "../../components/TagEditor";
-import type { ImageLibraryController } from "./useImageLibrary";
+import type { ImageLibrarySession } from "./useImageLibrary";
 import type { WorkspaceLimits } from "@image-hoisting/contracts";
 
 interface ImageDialogsProps {
-  library: ImageLibraryController;
+  session: ImageLibrarySession;
   profileLabel: string;
   limits: WorkspaceLimits;
 }
 
 export function ImageDialogs({
-  library,
+  session,
   profileLabel,
   limits,
 }: ImageDialogsProps) {
   const {
-    editTarget,
-    editFilename,
-    editTags,
+    editor,
     deleteTarget,
     selectedImages,
     batchDeleteOpen,
     batchDeleting,
+    batchDialog,
+    batchUpdating,
+    loading,
+    batchTags,
+    batchFolder,
+    batchUpdateError,
+    folders,
+  } = session.view;
+  const {
     setEditFilename,
     setEditTags,
     setDeleteTarget,
@@ -30,58 +37,106 @@ export function ImageDialogs({
     saveEdit,
     confirmDelete,
     confirmBatchDelete,
-  } = library;
+    closeBatchDialog,
+    confirmBatchUpdate,
+    setBatchTags,
+    setBatchFolder,
+  } = session.actions;
 
   return (
     <>
-      {library.batchDialog ? (
-        <Modal title={library.batchDialog === "tags" ? "Add tags to selected images" : "Move selected images"} onClose={library.closeBatchDialog}>
-          <form onSubmit={library.confirmBatchUpdate}>
-            <fieldset className="batch-metadata-fields" disabled={library.batchUpdating || library.loading}>
-              {library.batchDialog === "tags" ? (
+      {batchDialog ? (
+        <Modal
+          title={
+            batchDialog === "tags"
+              ? "Add tags to selected images"
+              : "Move selected images"
+          }
+          onClose={closeBatchDialog}
+        >
+          <form onSubmit={confirmBatchUpdate}>
+            <fieldset className="batch-metadata-fields" disabled={batchUpdating || loading}>
+              {batchDialog === "tags" ? (
                 <>
-                  <p>Tags will be added to {selectedImages.length} selected images. Existing tags are kept.</p>
+                  <p>
+                    Tags will be added to {selectedImages.length} selected
+                    images. Existing tags are kept.
+                  </p>
                   <label className="dialog-field">
                     <span>Tags to add</span>
-                    <TagEditor tags={library.batchTags} maxTags={limits.maxTags} maxTagLength={limits.maxTagLength} onChange={library.setBatchTags} />
+                    <TagEditor
+                      tags={batchTags}
+                      maxTags={limits.maxTags}
+                      maxTagLength={limits.maxTagLength}
+                      onChange={setBatchTags}
+                    />
                   </label>
                 </>
               ) : (
                 <>
-                  <p>Move {selectedImages.length} selected images without changing their public URLs. Leave blank to move them to Unfiled.</p>
+                  <p>
+                    Move {selectedImages.length} selected images without
+                    changing their public URLs. Leave blank to move them to
+                    Unfiled.
+                  </p>
                   <label className="dialog-field">
                     <span>Folder</span>
                     <input
-                      value={library.batchFolder}
+                      value={batchFolder}
                       list="history-folders"
                       maxLength={80}
                       placeholder="Unfiled"
-                      onChange={(event) => library.setBatchFolder(event.target.value)}
+                      onChange={(event) => setBatchFolder(event.target.value)}
                     />
                   </label>
                   <datalist id="history-folders">
-                    {library.folders.map((folder) => <option value={folder} key={folder} />)}
+                    {folders.map((folder) => (
+                      <option value={folder} key={folder} />
+                    ))}
                   </datalist>
                 </>
               )}
-              {library.batchUpdateError ? <p className="notice" role="alert">{library.batchUpdateError}</p> : null}
+              {batchUpdateError ? (
+                <p className="notice" role="alert">
+                  {batchUpdateError}
+                </p>
+              ) : null}
               <div className="dialog-actions">
-                <button className="button button-secondary" type="button" onClick={library.closeBatchDialog}>Cancel</button>
-                <button className="button button-primary" type="submit" disabled={selectedImages.length === 0 || (library.batchDialog === "tags" && library.batchTags.length === 0)}>
-                  {library.batchUpdating ? "Updating…" : library.batchUpdateError ? "Retry failed images" : library.batchDialog === "tags" ? "Add Tags" : "Move images"}
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={closeBatchDialog}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="button button-primary"
+                  type="submit"
+                  disabled={
+                    selectedImages.length === 0 ||
+                    (batchDialog === "tags" && batchTags.length === 0)
+                  }
+                >
+                  {batchUpdating
+                    ? "Updating…"
+                    : batchUpdateError
+                      ? "Retry failed images"
+                      : batchDialog === "tags"
+                        ? "Add Tags"
+                        : "Move images"}
                 </button>
               </div>
             </fieldset>
           </form>
         </Modal>
       ) : null}
-      {editTarget ? (
+      {editor ? (
         <Modal title="Edit image details" onClose={closeEditor}>
           <form onSubmit={saveEdit}>
             <label className="dialog-field">
               <span>Filename</span>
               <input
-                value={editFilename}
+                value={editor.filename}
                 required
                 maxLength={180}
                 onChange={(event) => setEditFilename(event.target.value)}
@@ -90,7 +145,7 @@ export function ImageDialogs({
             <label className="dialog-field">
               <span>Tags</span>
               <TagEditor
-                tags={editTags}
+                tags={editor.tags}
                 maxTags={limits.maxTags}
                 maxTagLength={limits.maxTagLength}
                 onChange={setEditTags}
