@@ -1,0 +1,59 @@
+.skeleton {
+  height: 112px;
+  border-radius: var(--radius-card);
+  background: linear-gradient(
+    100deg,
+    var(--canvas-soft) 20%,
+    var(--canvas-violet) 50%,
+    var(--canvas-soft) 80%
+  );
+  background-size: 220% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+.skeleton-grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@keyframes shimmer {
+
+  to {
+    background-position-x: -220%;
+  }
+}
+
+.empty-state {
+  margin-top: 28px;
+  padding: 64px 24px;
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--radius-card);
+  background: var(--canvas-soft);
+  text-align: center;
+
+  h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  p {
+    margin: 8px 0 0;
+    color: var(--body);
+    font-size: 14px;
+  }
+}
+
+.library-footer {
+  text-align: center;
+  padding: 24px;
+  color: var(--body);
+  font-size: 12px;
+}
+
+.batch-metadata-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
