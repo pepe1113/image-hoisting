@@ -1,10 +1,11 @@
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { handleRequest } from "../src";
 import type { Env } from "../src/types";
 import {
   ACCESS_ENV,
   AUDIENCE,
   createSigningIdentity,
+  failAccessCerts,
   OWNER_EMAIL,
   serveAccessCerts,
   signAccessJwt,
@@ -24,9 +25,19 @@ beforeAll(async () => {
     createSigningIdentity("rotated"),
     createSigningIdentity("stranger"),
   ]);
+  vi.useFakeTimers({ toFake: ["Date"] });
 });
 
+afterAll(() => {
+  vi.useRealTimers();
+});
+
+function advanceClock(milliseconds: number): void {
+  vi.setSystemTime(Date.now() + milliseconds);
+}
+
 beforeEach(() => {
+  advanceClock(2 * 60 * 60 * 1000);
   serveAccessCerts(primary);
 });
 
@@ -93,6 +104,7 @@ describe("Cloudflare Access verification", () => {
 
   it("refetches the Access certs when a token uses a newly rotated key", async () => {
     expect((await handleRequest(profilesRequest(await signAccessJwt(primary)), env())).status).toBe(200);
+    advanceClock(61_000);
     serveAccessCerts(primary, rotated);
     const response = await handleRequest(profilesRequest(await signAccessJwt(rotated)), env());
     expect(response.status).toBe(200);
@@ -131,6 +143,49 @@ describe("Cloudflare Access verification", () => {
   it("rejects an email outside the allowlist", async () => {
     const token = await signAccessJwt(primary, { email: "visitor@example.com" });
     await expectRejected(await handleRequest(profilesRequest(token), env()), "email not allowed");
+  });
+});
+
+describe("Access signing key cache", () => {
+  it("fetches the certs at most once per cooldown for unknown key IDs", async () => {
+    const certs = serveAccessCerts(primary);
+    expect((await handleRequest(profilesRequest(await signAccessJwt(primary)), env())).status).toBe(200);
+    expect(certs).toHaveBeenCalledTimes(1);
+
+    const randomKidTokens = () => Promise.all(
+      Array.from({ length: 20 }, () => signAccessJwt({ ...stranger, kid: crypto.randomUUID() })),
+    );
+    for (const response of await Promise.all(
+      (await randomKidTokens()).map((token) => handleRequest(profilesRequest(token), env())),
+    )) {
+      await expectRejected(response, "unknown signing key");
+    }
+    expect(certs).toHaveBeenCalledTimes(1);
+
+    advanceClock(61_000);
+    for (const response of await Promise.all(
+      (await randomKidTokens()).map((token) => handleRequest(profilesRequest(token), env())),
+    )) {
+      await expectRejected(response, "unknown signing key");
+    }
+    expect(certs).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps accepting cached keys when a certs refetch fails", async () => {
+    expect((await handleRequest(profilesRequest(await signAccessJwt(primary)), env())).status).toBe(200);
+    const failingCerts = failAccessCerts();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    advanceClock(61_000);
+    const unknownKid = await signAccessJwt(stranger);
+    await expectRejected(await handleRequest(profilesRequest(unknownKid), env()), "unknown signing key");
+    expect(failingCerts).toHaveBeenCalledTimes(1);
+    expect((await handleRequest(profilesRequest(await signAccessJwt(primary)), env())).status).toBe(200);
+
+    advanceClock(2 * 60 * 60 * 1000);
+    expect((await handleRequest(profilesRequest(await signAccessJwt(primary)), env())).status).toBe(200);
+    expect(failingCerts).toHaveBeenCalledTimes(2);
+    vi.mocked(console.error).mockRestore();
   });
 });
 

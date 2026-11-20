@@ -4,17 +4,20 @@ import type { Env } from "./types";
 
 const ACCESS_JWT_HEADER = "Cf-Access-Jwt-Assertion";
 const SIGNING_KEYS_TTL_MS = 60 * 60 * 1000;
+const SIGNING_KEYS_REFETCH_COOLDOWN_MS = 60 * 1000;
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 interface SigningKeys {
   teamDomain: string;
-  fetchedAt: number;
   keys: ReadonlyMap<string, CryptoKey>;
+  fetchedAt: number;
+  attemptedAt: number;
 }
 
 let signingKeys: SigningKeys | null = null;
+let signingKeysRefresh: Promise<void> | null = null;
 
-async function fetchSigningKeys(teamDomain: string, now: number): Promise<SigningKeys> {
+async function fetchSigningKeys(teamDomain: string): Promise<ReadonlyMap<string, CryptoKey>> {
   const response = await fetch(`https://${teamDomain}/cdn-cgi/access/certs`);
   if (!response.ok) throw new Error(`Cloudflare Access certs request failed: ${response.status}`);
   const body = (await response.json()) as { keys?: unknown };
@@ -33,18 +36,40 @@ async function fetchSigningKeys(teamDomain: string, now: number): Promise<Signin
       ),
     );
   }
-  return { teamDomain, fetchedAt: now, keys };
+  return keys;
+}
+
+function refreshSigningKeys(teamDomain: string, now: number): Promise<void> {
+  signingKeysRefresh ??= fetchSigningKeys(teamDomain)
+    .then((keys) => {
+      signingKeys = { teamDomain, keys, fetchedAt: now, attemptedAt: now };
+    })
+    .catch((cause: unknown) => {
+      console.error("Cloudflare Access certs refresh failed", {
+        error: cause instanceof Error ? cause.message : "NonErrorThrow",
+      });
+      const previous = signingKeys?.teamDomain === teamDomain ? signingKeys : null;
+      signingKeys = {
+        teamDomain,
+        keys: previous?.keys ?? new Map(),
+        fetchedAt: previous?.fetchedAt ?? Number.NEGATIVE_INFINITY,
+        attemptedAt: now,
+      };
+    })
+    .finally(() => {
+      signingKeysRefresh = null;
+    });
+  return signingKeysRefresh;
 }
 
 async function signingKey(teamDomain: string, kid: string): Promise<CryptoKey | null> {
   const now = Date.now();
-  const cached = signingKeys;
-  const fresh =
-    cached?.teamDomain === teamDomain && now - cached.fetchedAt < SIGNING_KEYS_TTL_MS;
-  if (!fresh || !cached.keys.has(kid)) {
-    signingKeys = await fetchSigningKeys(teamDomain, now);
-  }
-  return signingKeys?.keys.get(kid) ?? null;
+  const cached = signingKeys?.teamDomain === teamDomain ? signingKeys : null;
+  const needsRefresh =
+    !cached || !cached.keys.has(kid) || now - cached.fetchedAt >= SIGNING_KEYS_TTL_MS;
+  const mayRefresh = !cached || now - cached.attemptedAt >= SIGNING_KEYS_REFETCH_COOLDOWN_MS;
+  if (needsRefresh && mayRefresh) await refreshSigningKeys(teamDomain, now);
+  return signingKeys?.teamDomain === teamDomain ? (signingKeys.keys.get(kid) ?? null) : null;
 }
 
 export async function requireAccess(

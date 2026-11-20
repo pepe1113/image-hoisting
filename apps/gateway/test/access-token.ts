@@ -71,6 +71,12 @@ export async function signAccessJwt(
   return `${encoded}.${base64Url(new Uint8Array(signature))}`;
 }
 
+export function failAccessCerts() {
+  const fetchMock = vi.fn(async () => new Response("Access unavailable", { status: 503 }));
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
 export function serveAccessCerts(...identities: SigningIdentity[]) {
   const certsUrl = `https://${TEAM_DOMAIN}/cdn-cgi/access/certs`;
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
