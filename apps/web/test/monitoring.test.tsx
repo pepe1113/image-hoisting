@@ -23,7 +23,7 @@ it("captures only a render crash and shows a recovery action", () => {
 
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   function Crash(): never {
-    throw new Error("private-filename.webp private-tag admin-key");
+    throw new Error("private-filename.webp private-tag access-session");
   }
   render(<AppErrorBoundary><Crash /></AppErrorBoundary>);
 
@@ -37,15 +37,15 @@ it("removes user data while preserving release fields and stack frames", () => {
     type: undefined,
     environment: "production",
     release: "commit-sha",
-    message: "admin-key",
-    request: { headers: { Authorization: "Bearer admin-key" }, data: "request-body" },
+    message: "access-session",
+    request: { headers: { Cookie: "CF_Authorization=access-session" }, data: "request-body" },
     breadcrumbs: [{ message: "private-filename.webp" }],
     extra: { tags: ["private-tag"] },
     exception: {
       values: [{
         type: "Error",
         value: "private-filename.webp",
-        stacktrace: { frames: [{ filename: "src/App.tsx", vars: { token: "admin-key" } }] },
+        stacktrace: { frames: [{ filename: "src/App.tsx", vars: { token: "access-session" } }] },
       }],
     },
   });
@@ -53,5 +53,5 @@ it("removes user data while preserving release fields and stack frames", () => {
   expect(event.environment).toBe("production");
   expect(event.release).toBe("commit-sha");
   expect(event.exception?.values?.[0]?.stacktrace?.frames?.[0]?.filename).toBe("src/App.tsx");
-  expect(JSON.stringify(event)).not.toMatch(/admin-key|private-filename|private-tag|request-body/);
+  expect(JSON.stringify(event)).not.toMatch(/access-session|private-filename|private-tag|request-body/);
 });

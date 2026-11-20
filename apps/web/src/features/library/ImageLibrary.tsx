@@ -6,7 +6,6 @@ import { useImageLibrary } from "./useImageLibrary";
 
 interface ImageLibraryProps {
   enabled: boolean;
-  token: string;
   profileId: string;
   profileLabel: string;
   limits: WorkspaceLimits;
@@ -19,7 +18,6 @@ interface ImageLibraryProps {
 
 export function ImageLibrary({
   enabled,
-  token,
   profileId,
   profileLabel,
   limits,
@@ -31,8 +29,7 @@ export function ImageLibrary({
 }: ImageLibraryProps) {
   const session = useImageLibrary({
     enabled,
-    token,
-    profileId,
+      profileId,
     setNotice,
     setToast,
     copyText,

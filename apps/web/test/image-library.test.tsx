@@ -3,7 +3,7 @@ import { expect, it, vi } from "vitest";
 import { http, HttpResponse } from "msw";
 import { server } from "../src/mocks/node";
 import { imageList } from "../src/mocks/handlers";
-import { renderWithAdminKey, HISTORY_IMAGES } from "./fixtures";
+import { renderApp, HISTORY_IMAGES } from "./fixtures";
 
 it("renders loading until the API responds, then renders the empty state", async () => {
   let release!: () => void;
@@ -12,7 +12,7 @@ it("renders loading until the API responds, then renders the empty state", async
     await pending;
     return HttpResponse.json(imageList([]));
   }));
-  renderWithAdminKey();
+  renderApp();
   fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
   try {
     await waitFor(() => expect(screen.getByRole("region", { name: "Image gallery" }).getAttribute("aria-busy")).toBe("true"));
@@ -27,7 +27,7 @@ it("shows the server error when image loading fails", async () => {
   server.use(http.get("/api/images", () =>
     HttpResponse.json({ error: { code: "INTERNAL_ERROR", message: "Image service unavailable" } }, { status: 500 }),
   ));
-  renderWithAdminKey();
+  renderApp();
   fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
   expect(await screen.findByText("Image service unavailable")).toBeTruthy();
   expect(screen.getByRole("region", { name: "Image gallery" }).getAttribute("aria-busy")).toBe("false");
@@ -38,7 +38,7 @@ it("selects images and copies their Markdown in one batch", async () => {
   vi.stubGlobal("navigator", { clipboard: { writeText } });
   server.use(http.get("/api/images", () => HttpResponse.json(imageList(HISTORY_IMAGES))));
 
-  renderWithAdminKey();
+  renderApp();
   fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
   await screen.findByRole("button", { name: "Select" });
   expect(screen.queryByRole("button", { name: "Select cover.webp" })).toBeNull();
@@ -67,7 +67,7 @@ it("selects images and copies their Markdown in one batch", async () => {
 it("opens a history image in a lightbox", async () => {
   server.use(http.get("/api/images", () => HttpResponse.json(imageList(HISTORY_IMAGES))));
 
-  renderWithAdminKey();
+  renderApp();
   fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
   fireEvent.click(await screen.findByRole("button", { name: "View cover.webp full size" }));
 
@@ -86,7 +86,7 @@ it("keeps list copy and edit actions connected while showing Profile statistics"
   vi.stubGlobal("navigator", { clipboard: { writeText } });
   server.use(http.get("/api/images", () => HttpResponse.json(imageList(HISTORY_IMAGES))));
 
-  renderWithAdminKey();
+  renderApp();
   fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
   await screen.findByRole("button", { name: "Select" });
   fireEvent.click(screen.getByRole("button", { name: "List" }));
@@ -128,7 +128,7 @@ it("loads more history while scrolling and resets filters and selection", async 
       pagination: { total: 51, totalBytes: 51000, offset, limit: 50, cursor: offset ? null : "50", truncated: !offset },
     });
   }));
-  renderWithAdminKey();
+  renderApp();
   fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
   await screen.findByRole("button", { name: "Select" });
   fireEvent.click(screen.getByRole("button", { name: "Select" }));
@@ -159,7 +159,7 @@ it("keeps failed batch tag updates selected and retries only those images", asyn
     }
     return HttpResponse.json(imageList(records));
   }));
-  renderWithAdminKey();
+  renderApp();
   fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
   fireEvent.click(await screen.findByRole("button", { name: "Select" }));
   fireEvent.click(screen.getByRole("checkbox", { name: "Select all" }));
@@ -200,7 +200,7 @@ it("filters logical folders and retries only failed moves without changing image
     const data = folder === null ? records : records.filter((image) => (image.folder ?? "") === folder);
     return HttpResponse.json({ ...imageList(data), summary: imageList(records).summary });
   }));
-  renderWithAdminKey();
+  renderApp();
   fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
   await screen.findByText("Portfolio", { selector: ".image-folder" });
   fireEvent.change(screen.getByRole("combobox", { name: "Filter by folder" }), { target: { value: "folder:Portfolio" } });
@@ -242,7 +242,7 @@ it("confirms and deletes selected images in one batch", async () => {
     }),
   );
 
-  renderWithAdminKey();
+  renderApp();
   fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
   await screen.findByRole("button", { name: "Select" });
   expect(screen.queryByRole("button", { name: "Select cover.webp" })).toBeNull();

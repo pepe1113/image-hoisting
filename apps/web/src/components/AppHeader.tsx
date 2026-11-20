@@ -3,7 +3,6 @@ import {
   BrandIcon,
   CheckIcon,
   ChevronDownIcon,
-  KeyIcon,
   MenuIcon,
   PlusIcon,
   ProfileIcon,
@@ -16,12 +15,10 @@ interface AppHeaderProps {
   profiles: ImageProfile[];
   activeProfileId: string;
   resolvedDark: boolean;
-  hasAdminToken: boolean;
   onNavigate: (tab: WorkspaceTab) => void;
   onProfileChange: (profileId: string) => void;
   onAddProfile: () => void;
   onToggleTheme: () => void;
-  onOpenAdminKey: () => void;
 }
 
 export function AppHeader({
@@ -29,12 +26,10 @@ export function AppHeader({
   profiles,
   activeProfileId,
   resolvedDark,
-  hasAdminToken,
   onNavigate,
   onProfileChange,
   onAddProfile,
   onToggleTheme,
-  onOpenAdminKey,
 }: AppHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -232,15 +227,6 @@ export function AppHeader({
               onClick={() => closeMenuAfter(onToggleTheme)}
             >
               <ThemeIcon dark={resolvedDark} />
-            </button>
-            <button
-              className={`icon-button key-button utility-button${hasAdminToken ? " is-authenticated" : ""}`}
-              type="button"
-              title={hasAdminToken ? "Admin key saved" : "Set admin key"}
-              aria-label={hasAdminToken ? "Manage admin key" : "Set admin key"}
-              onClick={() => closeMenuAfter(onOpenAdminKey)}
-            >
-              <KeyIcon />
             </button>
           </div>
         </div>

@@ -10,7 +10,6 @@ import {
 
 interface UseImageLibraryOptions {
   enabled: boolean;
-  token: string;
   profileId: string;
   setNotice: (message: string) => void;
   setToast: (message: string) => void;
@@ -20,7 +19,6 @@ interface UseImageLibraryOptions {
 
 export function useImageLibrary({
   enabled,
-  token,
   profileId,
   setNotice,
   setToast,
@@ -36,13 +34,12 @@ export function useImageLibrary({
 
   useEffect(() => {
     generation.current += 1;
-    if (!enabled || !profileId || !token) return;
+    if (!enabled || !profileId) return;
     const controller = new AbortController();
     let ignore = false;
     const timer = window.setTimeout(() => {
       dispatch({ type: "loadStarted" });
       fetchImages(
-        token,
         profileId,
         state.search,
         state.folder,
@@ -70,7 +67,7 @@ export function useImageLibrary({
       controller.abort();
     };
   }, [
-    enabled, profileId, requestErrorMessage, setNotice, token,
+    enabled, profileId, requestErrorMessage, setNotice,
     state.cursor, state.folder, state.refreshVersion, state.search,
   ]);
 
@@ -94,7 +91,6 @@ export function useImageLibrary({
     const currentGeneration = generation.current;
     try {
       const updated = await updateImage(
-        token,
         profileId,
         state.editor.target.key,
         { filename: state.editor.filename, tags: state.editor.tags },
@@ -113,7 +109,7 @@ export function useImageLibrary({
     const target = state.deleteTarget;
     const currentGeneration = generation.current;
     try {
-      await deleteImage(token, profileId, target.key);
+      await deleteImage(profileId, target.key);
       if (currentGeneration !== generation.current) return;
       dispatch({ type: "imageDeleted", key: target.key });
       setToast("Image deleted");
@@ -129,7 +125,7 @@ export function useImageLibrary({
     const currentGeneration = generation.current;
     dispatch({ type: "batchDeleteStarted" });
     const results = await Promise.allSettled(
-      targets.map((image) => deleteImage(token, profileId, image.key)),
+      targets.map((image) => deleteImage(profileId, image.key)),
     );
     if (currentGeneration !== generation.current) return;
     const deletedKeys = new Set(
@@ -176,7 +172,7 @@ export function useImageLibrary({
       try {
         updated.set(
           image.key,
-          await updateImage(token, profileId, image.key, changes),
+          await updateImage(profileId, image.key, changes),
         );
       } catch (error) {
         failures.push({

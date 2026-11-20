@@ -30,18 +30,20 @@ export class ApiError extends Error {
   }
 }
 
-function authorizedOptions(token: string, options?: RequestInit): RequestInit {
-  const headers = new Headers(options?.headers);
-  headers.set("Authorization", `Bearer ${token}`);
-  return { ...options, headers };
+export class SessionExpiredError extends Error {
+  constructor() {
+    super("Your login expired.");
+    this.name = "SessionExpiredError";
+  }
 }
 
-export function isUnauthorized(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 401;
+function redirectedToLogin(response: Response): boolean {
+  return response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400);
 }
 
-export async function apiFetch<T>(token: string, path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(path, authorizedOptions(token, options));
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(path, { ...options, redirect: "manual" });
+  if (redirectedToLogin(response)) throw new SessionExpiredError();
   const payload = (await response.json().catch(() => null)) as (T & ApiErrorPayload) | null;
   if (!response.ok) {
     throw new ApiError(
@@ -53,20 +55,14 @@ export async function apiFetch<T>(token: string, path: string, options?: Request
   return payload as T;
 }
 
-export async function verifyAdminToken(token: string): Promise<void> {
-  await apiFetch(token, "/api/auth/verify");
-}
-
 function validLimit(value: unknown, fallback: number): number {
   return Number.isSafeInteger(value) && Number(value) > 0 ? Number(value) : fallback;
 }
 
 export async function fetchProfiles(
-  token: string,
   signal?: AbortSignal,
 ): Promise<{ profiles: ImageProfile[]; limits: WorkspaceLimits }> {
   const payload = await apiFetch<{ data: ImageProfile[]; limits?: Partial<WorkspaceLimits> }>(
-    token,
     "/api/profiles",
     signal ? { signal } : undefined,
   );
@@ -87,7 +83,6 @@ export async function fetchProfiles(
 }
 
 export async function fetchImages(
-  token: string,
   profileId: string,
   search: string,
   folder: string | null,
@@ -99,11 +94,17 @@ export async function fetchImages(
   if (cursor) url.searchParams.set("cursor", cursor);
   for (const tag of parseTagInput(search)) url.searchParams.append("tag", tag);
   if (folder !== null) url.searchParams.set("folder", folder);
-  return apiFetch(token, `${url.pathname}${url.search}`, signal ? { signal } : undefined);
+  return apiFetch(`${url.pathname}${url.search}`, signal ? { signal } : undefined);
+}
+
+async function networkFailure(): Promise<Error> {
+  const response = await fetch("/api/profiles", { redirect: "manual" }).catch(() => null);
+  return response && redirectedToLogin(response)
+    ? new SessionExpiredError()
+    : new Error("Network error. Please try again.");
 }
 
 export function uploadImage(
-  token: string,
   profileId: string,
   file: File,
   filename: string,
@@ -118,7 +119,6 @@ export function uploadImage(
 
     const request = new XMLHttpRequest();
     request.open("POST", profileUrl("/api/images", profileId));
-    request.setRequestHeader("Authorization", `Bearer ${token}`);
     request.responseType = "json";
     request.upload.addEventListener("progress", (event) => {
       if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
@@ -135,20 +135,21 @@ export function uploadImage(
         resolve((request.response as { data: ImageRecord }).data);
       }
     });
-    request.addEventListener("error", () => reject(new Error("Network error. Please try again.")));
+    request.addEventListener("error", () => {
+      void networkFailure().then(reject);
+    });
     request.send(form);
   });
 }
 
 export async function updateImage(
-  token: string,
   profileId: string,
   key: string,
   changes: ImagePatch,
 ): Promise<ImageRecord> {
   const url = new URL(profileUrl("/api/images", profileId), window.location.origin);
   url.searchParams.set("key", key);
-  const payload = await apiFetch<{ data: ImageRecord }>(token, `${url.pathname}${url.search}`, {
+  const payload = await apiFetch<{ data: ImageRecord }>(`${url.pathname}${url.search}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(changes),
@@ -156,8 +157,8 @@ export async function updateImage(
   return payload.data;
 }
 
-export async function deleteImage(token: string, profileId: string, key: string): Promise<void> {
+export async function deleteImage(profileId: string, key: string): Promise<void> {
   const url = new URL(profileUrl("/api/images", profileId), window.location.origin);
   url.searchParams.set("key", key);
-  await apiFetch(token, `${url.pathname}${url.search}`, { method: "DELETE" });
+  await apiFetch(`${url.pathname}${url.search}`, { method: "DELETE" });
 }

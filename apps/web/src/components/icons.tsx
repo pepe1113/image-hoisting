@@ -5,7 +5,6 @@ import {
   Copy,
   IdCard,
   ImageUp,
-  KeyRound,
   Menu,
   Moon,
   Plus,
@@ -36,10 +35,6 @@ export function CheckIcon({ className = "button-icon" }: IconProps) {
 export function MenuIcon({ open, className = "header-icon" }: MenuIconProps) {
   const Icon = open ? X : Menu;
   return <Icon className={className} aria-hidden="true" />;
-}
-
-export function KeyIcon({ className = "header-icon" }: IconProps) {
-  return <KeyRound className={className} aria-hidden="true" />;
 }
 
 export function ProfileIcon({ className = "header-icon" }: IconProps) {

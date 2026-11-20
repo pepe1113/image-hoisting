@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { AppHeader } from "./components/AppHeader";
-import { AdminKeyDialog } from "./features/auth/AdminKeyDialog";
 import { ImageLibrary } from "./features/library/ImageLibrary";
 import { ProfileSetupDialog } from "./features/profiles/ProfileSetupDialog";
 import { Upload } from "./features/upload/Upload";
@@ -18,7 +17,6 @@ export function App() {
     activeProfileId: settings.activeProfileId,
     onProfilesLoaded: settings.reconcileProfiles,
     setNotice: notifications.setNotice,
-    setToast: notifications.setToast,
   });
   const profileLabel = access.activeProfile?.label ?? "R2";
 
@@ -34,14 +32,12 @@ export function App() {
         profiles={access.profiles}
         activeProfileId={settings.activeProfileId}
         resolvedDark={settings.resolvedDark}
-        hasAdminToken={Boolean(access.token)}
         onNavigate={setTab}
         onProfileChange={changeProfile}
         onAddProfile={() => setProfileSetupOpen(true)}
         onToggleTheme={() =>
           settings.setTheme(settings.resolvedDark ? "light" : "dark")
         }
-        onOpenAdminKey={() => access.setAdminDialogOpen(true)}
       />
 
       {notifications.notice ? (
@@ -53,7 +49,6 @@ export function App() {
       <Upload
         key={`upload:${settings.activeProfileId}`}
         enabled={tab === "upload"}
-        token={access.token}
         profileId={settings.activeProfileId}
         profileLabel={profileLabel}
         activeProfileLabel={access.activeProfile?.label ?? "your R2 bucket"}
@@ -63,12 +58,12 @@ export function App() {
         setNotice={notifications.setNotice}
         setToast={notifications.setToast}
         requestErrorMessage={access.requestErrorMessage}
+        trackUpload={access.trackUpload}
         onCopy={notifications.copyText}
       />
       <ImageLibrary
         key={`library:${settings.activeProfileId}`}
         enabled={tab !== "upload"}
-        token={access.token}
         profileId={settings.activeProfileId}
         profileLabel={profileLabel}
         limits={access.limits}
@@ -102,14 +97,6 @@ export function App() {
         <span>Cloudflare R2 + React</span>
       </footer>
 
-      {access.adminDialogOpen ? (
-        <AdminKeyDialog
-          currentToken={access.token}
-          onSave={access.saveAdminKey}
-          onClear={access.removeAdminKey}
-          onClose={() => access.setAdminDialogOpen(false)}
-        />
-      ) : null}
       {profileSetupOpen ? (
         <ProfileSetupDialog
           onCopy={notifications.copyText}

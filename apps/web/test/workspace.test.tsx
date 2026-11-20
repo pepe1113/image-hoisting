@@ -1,9 +1,9 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { expect, it } from "vitest";
-import { renderWithAdminKey } from "./fixtures";
+import { renderApp } from "./fixtures";
 
 it("switches between upload, gallery and list from the header navigation", async () => {
-  renderWithAdminKey();
+  renderApp();
   const navigation = screen.getByRole("navigation", { name: "Workspace" });
   expect(navigation.getAttribute("data-active")).toBe("upload");
   expect(screen.getByRole("button", { name: "Upload" }).getAttribute("aria-current")).toBe("page");
@@ -22,14 +22,14 @@ it("switches between upload, gallery and list from the header navigation", async
 });
 
 it("opens the mobile navigation menu", () => {
-  renderWithAdminKey();
+  renderApp();
   const menu = screen.getByRole("button", { name: "Open navigation menu" });
   fireEvent.click(menu);
   expect(screen.getByRole("button", { name: "Close navigation menu" }).getAttribute("aria-expanded")).toBe("true");
 });
 
 it("changes theme only when the user activates the control", async () => {
-  renderWithAdminKey();
+  renderApp();
   const profile = await screen.findByRole("button", { name: "Active profile: Default" });
   expect(profile).toHaveProperty("disabled", true);
   expect(profile.title).toBe("No other profiles available");
