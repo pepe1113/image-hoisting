@@ -47,7 +47,7 @@
 - **自動命名：** 輸入顯示檔名，或產生八字元隨機名稱
 - **上傳結果：** 上傳成功後顯示圖片、Markdown 與圖片網址
 - **Profiles：** 切換不同 R2 bucket，並透過介面產生新的伺服器端 profile 設定
-- **GitHub 登入：** 透過 Cloudflare Access 登入一次，一個月內維持登入；Worker 會在每個管理 API 請求驗證 Access token
+- **Cloudflare 登入：** 透過 Cloudflare Access 登入一次，一個月內維持登入；Worker 會在每個管理 API 請求驗證 Access token
 - **主題：** 跟隨系統，或選擇亮色／深色模式
 - **標籤：** 新增標籤，並依標籤搜尋圖片
 - **Gallery 與 List：** 從 Header 切換左右保留 30 px 的滿版 Masonry Gallery，往下捲動時載入更多圖片；或使用置中、最大寬度 900 px 的 List，方便閱讀與操作
@@ -115,13 +115,11 @@ Profile 名稱、binding 與公開網址統一在 `wrangler.jsonc` 的 `vars.IMA
 
 ### 設定 Cloudflare Access
 
-Cloudflare Access 會在 Worker 前加上 GitHub 登入。登入一次後，瀏覽器會保留 Access session 一個月。Worker 也會在每個 `/api/*` 請求驗證 Access token，所以即使某個 hostname 沒有受 Access 保護，也無法呼叫管理 API。
+Cloudflare Access 會在 Worker 前加上 Cloudflare 帳號登入，使用與 Cloudflare dashboard 相同的帳號。登入一次後，瀏覽器會保留 Access session 一個月。Worker 也會在每個 `/api/*` 請求驗證 Access token，所以即使某個 hostname 沒有受 Access 保護，也無法呼叫管理 API。
 
-1. 建立 GitHub OAuth app。在 GitHub 前往 **Settings** > **Developer settings** > **OAuth Apps**，選擇 **New OAuth App**。**Homepage URL** 填 `https://<your-team-name>.cloudflareaccess.com`，**Authorization callback URL** 填 `https://<your-team-name>.cloudflareaccess.com/cdn-cgi/access/callback`。複製 **Client ID**，再產生並複製 **Client secret**。
-2. 將 GitHub 加為 identity provider。在 Cloudflare dashboard 前往 **Zero Trust** > **Integrations** > **Identity providers**，選擇 **Add new identity provider**，再選 **GitHub**。將 client ID 貼到 **App ID**，secret 貼到 **Client secret**。選擇 **Save**，再選 **Finish setup**。
-3. 保護整個 Worker。在 **Workers & Pages** 選擇你的 Worker，前往 **Settings** > **Domains & Routes**，為 `workers.dev` 選擇 **Enable Cloudflare Access**。若 Worker 也有自訂網域，請在 **Zero Trust** > **Access controls** > **Applications** 為該 hostname 建立 self-hosted application。Application 只保留一條 Allow policy，且只包含你的 email，並將 **Session Duration** 設為 1 month。
-4. 讓公開路徑維持公開。在 **Zero Trust** > **Access controls** > **Applications** 為同一個 hostname 建立第二個 self-hosted application，路徑填 `images`、`profile-images` 與 `health`。為它加上 action 為 **Bypass**、包含 **Everyone** 的 policy。少了這個 application，指向 Worker 的圖片連結會要求登入，每次部署後的 CI 健康檢查也會失敗。
-5. 將設定複製到 `wrangler.jsonc` 的 `vars`。Team domain 位於 **Zero Trust** > **Settings** > **Team name and domain**。AUD tag 是步驟 3 application 的 **Additional settings** 中的 **Application Audience (AUD) Tag**。
+1. 保護整個 Worker。在 **Workers & Pages** 選擇你的 Worker，前往 **Settings** > **Domains & Routes**，為 `workers.dev` 選擇 **Enable Cloudflare Access**。登入對象選擇 **Cloudflare account**，只有你 Cloudflare 帳號的成員能登入。接著選擇 **Manage Cloudflare Access**，將 **Session Duration** 設為 1 month。若 Worker 也有自訂網域，請在 **Zero Trust** > **Access controls** > **Applications** 為該 hostname 建立 self-hosted application，並套用相同的 policy。
+2. 讓公開路徑維持公開。在 **Zero Trust** > **Access controls** > **Applications** 為同一個 hostname 建立第二個 self-hosted application，路徑填 `images`、`profile-images` 與 `health`。為它加上 action 為 **Bypass**、包含 **Everyone** 的 policy。少了這個 application，指向 Worker 的圖片連結會要求登入，每次部署後的 CI 健康檢查也會失敗。
+3. 將設定複製到 `wrangler.jsonc` 的 `vars`。Team domain 位於 **Zero Trust** > **Settings** > **Team name and domain**。AUD tag 是步驟 1 application 的 **Additional settings** 中的 **Application Audience (AUD) Tag**。
 
    ```jsonc
    "ACCESS_TEAM_DOMAIN": "your-team-name.cloudflareaccess.com",

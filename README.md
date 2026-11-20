@@ -53,7 +53,7 @@ Drop or paste an image into the page, optimize it in the browser, upload it to C
 - **Auto rename:** Enter a display filename or generate a random eight-character name.
 - **Upload result:** Show the uploaded image, Markdown, and image URL after a successful upload.
 - **Profiles:** Switch between R2 buckets and use the in-app setup helper to prepare a new server-side profile without exposing bucket credentials to the browser.
-- **GitHub login:** Sign in once through Cloudflare Access and stay signed in for a month. The Worker verifies the Access token on every management API request.
+- **Cloudflare login:** Sign in once through Cloudflare Access and stay signed in for a month. The Worker verifies the Access token on every management API request.
 - **Themes:** Use the system theme or choose light/dark mode.
 - **Tags:** Add tags and search images by tag.
 - **Gallery and list:** Switch from the header between a full-width Masonry gallery with 30 px margins that loads more images as you scroll, or a centered list capped at 900 px for easier reading and management.
@@ -124,13 +124,11 @@ Production sign-in uses Cloudflare Access. See [Set up Cloudflare Access](#set-u
 
 ## Set up Cloudflare Access
 
-Cloudflare Access puts a GitHub login in front of the Worker. After you sign in once, the browser keeps the Access session for a month. The Worker also verifies the Access token on every `/api/*` request, so a hostname that Access does not protect still cannot reach the management API.
+Cloudflare Access puts a Cloudflare account login in front of the Worker, so you sign in with the same account you use for the Cloudflare dashboard. After you sign in once, the browser keeps the Access session for a month. The Worker also verifies the Access token on every `/api/*` request, so a hostname that Access does not protect still cannot reach the management API.
 
-1. Create a GitHub OAuth app. In GitHub, go to **Settings** > **Developer settings** > **OAuth Apps** and select **New OAuth App**. Set **Homepage URL** to `https://<your-team-name>.cloudflareaccess.com` and **Authorization callback URL** to `https://<your-team-name>.cloudflareaccess.com/cdn-cgi/access/callback`. Copy the **Client ID**, then generate and copy a **Client secret**.
-2. Add GitHub as an identity provider. In the Cloudflare dashboard, go to **Zero Trust** > **Integrations** > **Identity providers**, select **Add new identity provider**, and select **GitHub**. Paste the client ID into **App ID** and the secret into **Client secret**. Select **Save**, then **Finish setup**.
-3. Protect the whole Worker. In **Workers & Pages**, select your Worker, go to **Settings** > **Domains & Routes**, and select **Enable Cloudflare Access** for `workers.dev`. If the Worker also has a custom domain, protect that hostname with a self-hosted application in **Zero Trust** > **Access controls** > **Applications**. In the application, keep one Allow policy that includes only your email, and set **Session Duration** to 1 month.
-4. Keep the public routes public. In **Zero Trust** > **Access controls** > **Applications**, create a second self-hosted application for the same hostname with the paths `images`, `profile-images`, and `health`. Give it a policy with the **Bypass** action that includes **Everyone**. Without this application, image links that point at the Worker ask for a login, and the CI health check after each deployment fails.
-5. Copy the settings into `vars` in `wrangler.jsonc`. The team domain is under **Zero Trust** > **Settings** > **Team name and domain**. The AUD tag is the **Application Audience (AUD) Tag** under **Additional settings** of the application from step 3.
+1. Protect the whole Worker. In **Workers & Pages**, select your Worker, go to **Settings** > **Domains & Routes**, and select **Enable Cloudflare Access** for `workers.dev`. Under who can sign in, choose **Cloudflare account** so only members of your Cloudflare account get in. Then select **Manage Cloudflare Access** and set **Session Duration** to 1 month. If the Worker also has a custom domain, protect that hostname with a self-hosted application in **Zero Trust** > **Access controls** > **Applications** using the same policy.
+2. Keep the public routes public. In **Zero Trust** > **Access controls** > **Applications**, create a second self-hosted application for the same hostname with the paths `images`, `profile-images`, and `health`. Give it a policy with the **Bypass** action that includes **Everyone**. Without this application, image links that point at the Worker ask for a login, and the CI health check after each deployment fails.
+3. Copy the settings into `vars` in `wrangler.jsonc`. The team domain is under **Zero Trust** > **Settings** > **Team name and domain**. The AUD tag is the **Application Audience (AUD) Tag** under **Additional settings** of the application from step 1.
 
    ```jsonc
    "ACCESS_TEAM_DOMAIN": "your-team-name.cloudflareaccess.com",
