@@ -5,6 +5,7 @@ import type { Env } from "./types";
 const ACCESS_JWT_HEADER = "Cf-Access-Jwt-Assertion";
 const SIGNING_KEYS_TTL_MS = 60 * 60 * 1000;
 const SIGNING_KEYS_REFETCH_COOLDOWN_MS = 60 * 1000;
+const SIGNING_KEYS_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 interface SigningKeys {
@@ -69,7 +70,9 @@ async function signingKey(teamDomain: string, kid: string): Promise<CryptoKey | 
     !cached || !cached.keys.has(kid) || now - cached.fetchedAt >= SIGNING_KEYS_TTL_MS;
   const mayRefresh = !cached || now - cached.attemptedAt >= SIGNING_KEYS_REFETCH_COOLDOWN_MS;
   if (needsRefresh && mayRefresh) await refreshSigningKeys(teamDomain, now);
-  return signingKeys?.teamDomain === teamDomain ? (signingKeys.keys.get(kid) ?? null) : null;
+  const current = signingKeys?.teamDomain === teamDomain ? signingKeys : null;
+  if (!current || now - current.fetchedAt >= SIGNING_KEYS_MAX_AGE_MS) return null;
+  return current.keys.get(kid) ?? null;
 }
 
 export async function requireAccess(

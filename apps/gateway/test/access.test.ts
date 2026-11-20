@@ -187,6 +187,20 @@ describe("Access signing key cache", () => {
     expect(failingCerts).toHaveBeenCalledTimes(2);
     vi.mocked(console.error).mockRestore();
   });
+
+  it("stops accepting cached keys once they pass the 24 hour max age", async () => {
+    expect((await handleRequest(profilesRequest(await signAccessJwt(primary)), env())).status).toBe(200);
+    failAccessCerts();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    advanceClock(23 * 60 * 60 * 1000);
+    expect((await handleRequest(profilesRequest(await signAccessJwt(primary)), env())).status).toBe(200);
+
+    advanceClock(2 * 60 * 60 * 1000);
+    const token = await signAccessJwt(primary);
+    await expectRejected(await handleRequest(profilesRequest(token), env()), "unknown signing key");
+    vi.mocked(console.error).mockRestore();
+  });
 });
 
 describe("Access configuration", () => {
