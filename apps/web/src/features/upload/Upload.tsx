@@ -6,7 +6,6 @@ import { useUpload } from "./useUpload";
 
 interface UploadProps {
   enabled: boolean;
-  token: string;
   profileId: string;
   profileLabel: string;
   activeProfileLabel: string;
@@ -16,12 +15,12 @@ interface UploadProps {
   setNotice: (message: string) => void;
   setToast: (message: string) => void;
   requestErrorMessage: (error: unknown, fallback: string) => string;
+  trackUpload: <T>(upload: Promise<T>) => Promise<T>;
   onCopy: (value: string, message: string) => void;
 }
 
 export function Upload({
   enabled,
-  token,
   profileId,
   profileLabel,
   activeProfileLabel,
@@ -31,16 +30,17 @@ export function Upload({
   setNotice,
   setToast,
   requestErrorMessage,
+  trackUpload,
   onCopy,
 }: UploadProps) {
   const session = useUpload({
-    token,
-    profileId,
+      profileId,
     preferences,
     maxUploadBytes: limits.maxUploadBytes,
     setNotice,
     setToast,
     requestErrorMessage,
+    trackUpload,
     onPreferences,
   });
 

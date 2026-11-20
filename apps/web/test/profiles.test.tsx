@@ -2,10 +2,10 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { http, HttpResponse } from "msw";
 import { server } from "../src/mocks/node";
-import { renderWithAdminKey } from "./fixtures";
+import { renderApp } from "./fixtures";
 
 it("closes a modal with cancel and restores focus", () => {
-  renderWithAdminKey();
+  renderApp();
   const trigger = screen.getByRole("button", { name: "Add profile" });
   trigger.focus();
   fireEvent.click(trigger);
@@ -20,7 +20,7 @@ it("closes a modal with cancel and restores focus", () => {
 it("copies two directly pasteable deployment values for a new profile", async () => {
   const writeText = vi.fn(async () => undefined);
   vi.stubGlobal("navigator", { clipboard: { writeText } });
-  renderWithAdminKey();
+  renderApp();
   fireEvent.click(screen.getByRole("button", { name: "Add profile" }));
   expect(screen.getByRole("dialog", { name: "Add an R2 profile" })).toBeTruthy();
 
@@ -56,7 +56,7 @@ it("switches profiles from a custom menu and highlights the active bucket", asyn
     ]
   })));
 
-  renderWithAdminKey();
+  renderApp();
   const trigger = await screen.findByRole("button", { name: "Active profile: Blog images" });
   fireEvent.click(trigger);
 

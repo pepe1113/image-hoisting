@@ -11,7 +11,6 @@ export function imageList(data: ImageRecord[]): ImageList {
 }
 
 export const handlers = [
-  http.get("/api/auth/verify", () => HttpResponse.json({ data: { authenticated: true } })),
   http.get("/api/profiles", () => HttpResponse.json({
     data: [{ id: "default", label: "Default", isDefault: true }],
     limits: DEFAULT_WORKSPACE_LIMITS,

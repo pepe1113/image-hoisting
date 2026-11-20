@@ -313,26 +313,6 @@
   border-left: 1px solid var(--hairline);
 }
 
-.key-button {
-  position: relative;
-
-  &::after {
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    width: 6px;
-    height: 6px;
-    border: 1px solid var(--canvas);
-    border-radius: 50%;
-    background: var(--danger);
-    content: '';
-  }
-
-  &.is-authenticated::after {
-    background: #15936f;
-  }
-}
-
 .header-icon {
   width: 18px;
   height: 18px;

@@ -2,30 +2,13 @@ import { fireEvent, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { http, HttpResponse } from "msw";
 import { server } from "../src/mocks/node";
-import { renderWithAdminKey, HISTORY_IMAGES } from "./fixtures";
-
-async function submitOriginalGif() {
-  const BrowserUrl = URL;
-  vi.stubGlobal("URL", class extends BrowserUrl {
-    static createObjectURL = vi.fn(() => "blob:upload-image");
-    static revokeObjectURL = vi.fn();
-  });
-  renderWithAdminKey();
-  await screen.findByRole("button", { name: "Active profile: Default" });
-  fireEvent.change(document.querySelector("#file-input") as HTMLInputElement, {
-    target: { files: [new File(["GIF89a"], "animated.gif", { type: "image/gif" })] },
-  });
-  fireEvent.change(screen.getByPlaceholderText("Leave blank to auto rename"), { target: { value: "animated.gif" } });
-  fireEvent.click(screen.getByRole("button", { name: "Review upload" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Upload original image" }));
-}
+import { renderApp, HISTORY_IMAGES, submitOriginalGif } from "./fixtures";
 
 it("renders the uploaded image after a successful upload response", async () => {
   server.use(http.post("/api/images", async ({ request }) => {
     // Inspect wire bytes: Node's multipart parser rejects jsdom File instances.
     const body = await request.text();
-    if (!body.includes('name="filename"\r\n\r\nanimated.gif') || !body.includes('name="file"') ||
-      request.headers.get("Authorization") !== "Bearer saved-admin-key") {
+    if (!body.includes('name="filename"\r\n\r\nanimated.gif') || !body.includes('name="file"')) {
       return new HttpResponse(null, { status: 400 });
     }
     return HttpResponse.json({ data: { ...HISTORY_IMAGES[0], filename: "animated.gif" } }, { status: 201 });
@@ -50,7 +33,7 @@ it("links the selected upload preview to the original image", async () => {
     static createObjectURL = vi.fn(() => "blob:selected-image");
     static revokeObjectURL = vi.fn();
   });
-  renderWithAdminKey();
+  renderApp();
 
   const file = new File(["image"], "image.png", { type: "image/png" });
   fireEvent.change(document.querySelector("#file-input") as HTMLInputElement, {
@@ -73,7 +56,7 @@ it("edits processing in the upload panel and calculates proportional dimensions"
     static createObjectURL = vi.fn(() => "blob:processing-image");
     static revokeObjectURL = vi.fn();
   });
-  renderWithAdminKey();
+  renderApp();
 
   const file = new File(["image"], "cover.png", { type: "image/png" });
   fireEvent.change(document.querySelector("#file-input") as HTMLInputElement, {
@@ -113,7 +96,7 @@ it("locks processing controls and shows Original for GIF uploads", async () => {
     static createObjectURL = vi.fn(() => "blob:animated-image");
     static revokeObjectURL = vi.fn();
   });
-  renderWithAdminKey();
+  renderApp();
 
   fireEvent.change(document.querySelector("#file-input") as HTMLInputElement, {
     target: { files: [new File(["gif"], "animated.gif", { type: "image/gif" })] },

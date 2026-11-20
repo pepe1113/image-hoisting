@@ -10,7 +10,6 @@ import type {
 export { MAX_TAG_LENGTH, MAX_TAGS } from "@image-hoisting/contracts";
 
 export const SETTINGS_KEY = "r2-image-settings";
-export const ADMIN_TOKEN_KEY = "r2-image-admin-token";
 export const MAX_SOURCE_BYTES = 40 * 1024 * 1024;
 
 export const DEFAULT_PROFILE_PREFERENCES: ProfilePreferences = {
@@ -32,18 +31,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   activeProfileId: "default",
   profiles: {},
 };
-
-export function readAdminToken(): string {
-  return localStorage.getItem(ADMIN_TOKEN_KEY)?.trim() ?? "";
-}
-
-export function saveAdminToken(token: string): void {
-  localStorage.setItem(ADMIN_TOKEN_KEY, token.trim());
-}
-
-export function clearAdminToken(): void {
-  localStorage.removeItem(ADMIN_TOKEN_KEY);
-}
 
 export function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes < 0) return "Unknown size";

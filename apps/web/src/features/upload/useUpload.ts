@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useState, type FormEvent } from "react";
-import { uploadImage } from "../../api";
+import { SessionExpiredError, uploadImage } from "../../api";
 import {
   calculateTargetSize,
   extensionForFile,
@@ -13,13 +13,13 @@ import type { ProcessingPreset, ProfilePreferences } from "../../types";
 import { initialUploadState, uploadReducer } from "./uploadState";
 
 interface UseUploadOptions {
-  token: string;
   profileId: string;
   preferences: ProfilePreferences;
   maxUploadBytes: number;
   setNotice: (message: string) => void;
   setToast: (message: string) => void;
   requestErrorMessage: (error: unknown, fallback: string) => string;
+  trackUpload: <T>(upload: Promise<T>) => Promise<T>;
   onPreferences: (preferences: ProfilePreferences) => void;
 }
 
@@ -40,13 +40,13 @@ function useObjectUrl(file: File | null): string {
 }
 
 export function useUpload({
-  token,
   profileId,
   preferences,
   maxUploadBytes,
   setNotice,
   setToast,
   requestErrorMessage,
+  trackUpload,
   onPreferences,
 }: UseUploadOptions) {
   const [state, dispatch] = useReducer(uploadReducer, initialUploadState);
@@ -146,19 +146,22 @@ export function useUpload({
     }
     dispatch({ type: "uploadStarted", filename });
     try {
-      const image = await uploadImage(
-        token,
+      const image = await trackUpload(uploadImage(
         profileId,
         file,
         filename,
         state.tags,
         (progress) => dispatch({ type: "uploadProgressed", progress }),
-      );
+      ));
       dispatch({ type: "uploadSucceeded", image });
       setToast(`${image.filename} uploaded and ready to copy.`);
     } catch (error) {
       dispatch({ type: "uploadFailed" });
-      setNotice(requestErrorMessage(error, "Upload failed."));
+      setNotice(
+        error instanceof SessionExpiredError
+          ? "Your login expired before the upload finished. Reload the page to sign in, then upload again."
+          : requestErrorMessage(error, "Upload failed."),
+      );
     }
   }
 
