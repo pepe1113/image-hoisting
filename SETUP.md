@@ -1,82 +1,22 @@
-[English](README.md) | [繁體中文](README.zh-TW.md)
+[繁體中文](SETUP.md) | [English](SETUP.en.md)
 
-<p align="center">
-  <img src="apps/web/public/icon.png" height="100" style="border-radius:20px;margin:30px 0;">
-  <h1 align="center">R2 Image Hosting</h1>
-</p>
+# R2 Image Hosting 設定與維運
 
-<p align="center">
-  <img src="https://img.shields.io/badge/React-19.2.8-20232A?logo=react&logoColor=61DAFB" alt="React 19.2.8" />
-  <img src="https://img.shields.io/badge/TypeScript-6.0.3-3178C6?logo=typescript&logoColor=white" alt="TypeScript 6.0.3" />
-</p>
+專案介紹請見 [README](README.md)。
 
-一個適合部落格、技術文件與 Markdown 文章使用的小型自架圖片託管工具（圖床）
+- [本機執行](#-本機執行)
+  - [設定](#設定)
+- [設定 Cloudflare Access](#-設定-cloudflare-access)
+- [部署](#-部署)
+- [支援的圖片](#-支援的圖片)
+- [API](#-api)
+- [多個 Profile](#-多個-profile)
+- [指令](#-指令)
+- [CI 與部署](#-ci-與部署)
+- [安全與隱私](#-安全與隱私)
+- [技術架構](#-技術架構)
 
-[線上 Demo](https://image.demo.peiwang.dev/)
-
-> **注意：** 此 Demo 僅供展示，上傳的圖片會在 7 天內刪除
-
-
-
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Supported Images](#supported-images)
-- [Run Locally](#run-locally)
-  - [Configuration](#configuration)
-  - [Deploy](#deploy)
-- [API](#api)
-- [Multiple Profiles](#multiple-profiles)
-- [Commands](#commands)
-- [CI 與部署](#ci-與部署)
-- [Security and Privacy](#security-and-privacy)
-- [License](#license)
-
-可自行 clone 到本機或 deploy 至雲端，將圖片拖曳或貼到頁面，在瀏覽器中提供選項 resize、圖片壓縮、優化成 webp 後上傳至 Cloudflare R2，可複製 Markdown 圖片語法或網址
-
-<p align="center">
-  <img src="./apps/web/public/demo.gif" alt="R2 Image Hosting upload workspace" width="500" />
-</p>
-## Features
-
-- **React & TypeScript：** 前端由 React & TypeScript 構成
-- **上傳：** 拖曳單一檔案，或使用 `Command + V`／`Ctrl + V` 貼上圖片
-- **預覽：** 上傳前先確認圖片
-- **處理確認：** 比較尺寸、檔案大小、縮放比例、節省空間與處理時間，再進行上傳
-- **自訂處理：** 可使用 High、Standard、Fast，或自訂最長邊、WebP 品質與銳化強度
-- **流暢處理：** 支援時由 Web Worker 執行縮放、銳化與 WebP 編碼，並保留原生 Canvas fallback
-- **自動命名：** 輸入顯示檔名，或產生八字元隨機名稱
-- **上傳結果：** 上傳成功後顯示圖片、Markdown 與圖片網址
-- **Profiles：** 切換不同 R2 bucket，並透過介面產生新的伺服器端 profile 設定
-- **Cloudflare 登入：** 透過 Cloudflare Access 登入一次，一個月內維持登入；Worker 會在每個管理 API 請求驗證 Access token
-- **主題：** 跟隨系統，或選擇亮色／深色模式
-- **標籤：** 新增標籤，並依標籤搜尋圖片
-- **Gallery 與 List：** 從 Header 切換左右保留 30 px 的滿版 Masonry Gallery，往下捲動時載入更多圖片；或使用置中、最大寬度 900 px 的 List，方便閱讀與操作
-- **編輯：** 修改顯示檔名，不改變圖片網址
-- **刪除：** 從圖片庫刪除圖片
-
-## Tech Stack
-
-| 技術 | 用途 |
-| --- | --- |
-| Cloudflare Workers | 提供網站與圖片 API |
-| Cloudflare R2 | 儲存上傳圖片 |
-| TypeScript | Worker 與 API 程式碼 |
-| React、TypeScript、Vite | 瀏覽器介面 |
-| Vitest | 自動化測試 |
-
-瀏覽器端執行依賴為 React 與 ReactDOM；圖片處理使用瀏覽器原生 API，不另外加入圖片 codec dependency
-
-pnpm workspace 只包含 `apps/web`、`apps/gateway` 與 `packages/contracts`。Gateway Worker 仍是唯一公開入口，一次部署 Web assets 與 API；Contracts 只保存兩個 app 共用的資料、限制與錯誤格式。
-
-[圖片處理效能測試](docs/image-processing-benchmark.md)
-
-## Supported Images
-
-支援 JPEG、PNG、GIF、WebP 與 AVIF，預設上傳上限為 10 MiB
-
-伺服器會檢查實際檔案特徵，不只信任瀏覽器提供的 MIME type。由於 SVG 可能包含可執行腳本，因此不支援 SVG
-
-## Run Locally
+## 💻 本機執行
 
 需要 Node.js 22 以上版本，推薦使用 nvm 管理版本
 
@@ -96,7 +36,7 @@ pnpm dev
 
 開發期間 Wrangler 使用本機 R2 儲存空間，因此本機上傳不會改動正式環境的 bucket
 
-### Configuration
+### 設定
 
 本機設定放在 `.dev.vars`：
 
@@ -107,13 +47,16 @@ CORS_ORIGINS=http://localhost:3000,https://www.example.com  # 限制可呼叫來
 MAX_UPLOAD_BYTES=10485760  # 上傳大小上限
 ```
 
+- `ACCESS_DEV_EMAIL` 讓本機請求以該 email 登入，不需 Cloudflare Access 即可執行。Worker 只在請求送往 `localhost`、`127.0.0.1` 或 `[::1]`，且 `ACCESS_TEAM_DOMAIN` 為空時接受它。
+- `ACCESS_TEAM_DOMAIN=` 會在本機清除 `wrangler.jsonc` 的正式環境值；少了這行，已設定的 `wrangler.jsonc` 會啟用 Access 模式，本機 API 會回傳 `503 AUTH_NOT_CONFIGURED`。
+- `CORS_ORIGINS` 控制哪些瀏覽器來源可以呼叫 API。
+- `MAX_UPLOAD_BYTES` 設定上傳大小上限。
+
 Profile 名稱、binding 與公開網址統一在 `wrangler.jsonc` 的 `vars.IMAGE_PROFILES` 中管理。
 
-`ACCESS_DEV_EMAIL` 讓本機請求以該 email 登入，不需 Cloudflare Access 即可執行。Worker 只在請求送往 `localhost`、`127.0.0.1` 或 `[::1]`，且 `ACCESS_TEAM_DOMAIN` 為空時接受它。`.dev.vars` 中的 `ACCESS_TEAM_DOMAIN=` 會在本機清除 `wrangler.jsonc` 的正式環境值；少了這行，已設定的 `wrangler.jsonc` 會啟用 Access 模式，本機 API 會回傳 `503 AUTH_NOT_CONFIGURED`。
+正式環境透過 Cloudflare Access 登入，請參考 [設定 Cloudflare Access](#-設定-cloudflare-access)。
 
-正式環境透過 Cloudflare Access 登入，請參考 [設定 Cloudflare Access](#設定-cloudflare-access)。
-
-### 設定 Cloudflare Access
+## 🔑 設定 Cloudflare Access
 
 Cloudflare Access 會在 Worker 前加上 Cloudflare 帳號登入，使用與 Cloudflare dashboard 相同的帳號。登入一次後，瀏覽器會保留 Access session 一個月。Worker 也會在每個 `/api/*` 請求驗證 Access token，所以即使某個 hostname 沒有受 Access 保護，也無法呼叫管理 API。
 
@@ -135,7 +78,7 @@ Access session 過期時，應用程式會重新載入頁面，讓 Access 重新
 
 既有部署要改用 Access 時，請先完成 Access 設定並部署此版本，再到 Worker 的 **Settings** > **Variables and Secrets** 刪除舊的 Bearer token secret。此版本已不再讀取它。
 
-### Deploy
+## 🚢 部署
 
 1. 登入 Cloudflare 並建立 R2 bucket：
 
@@ -160,7 +103,7 @@ Access session 過期時，應用程式會重新載入頁面，讓 Access 重新
 
 3. 為 bucket 連接 R2 自訂網域，再將網址填入 profile 的 `publicBaseUrl`。`r2.dev` 僅用於本機或短期測試，具有流量限制，也不提供正式環境的快取控制。圖片可保存於 edge，但每次重用前會重新驗證，因此刪除物件後不會留下仍在 fresh 狀態的長效副本。
 
-4. 完成 Cloudflare Access 設定並填入 `ACCESS_*` 變數，請參考 [設定 Cloudflare Access](#設定-cloudflare-access)。
+4. 完成 Cloudflare Access 設定並填入 `ACCESS_*` 變數，請參考 [設定 Cloudflare Access](#-設定-cloudflare-access)。
 
 5. 部署：
 
@@ -170,8 +113,13 @@ Access session 過期時，應用程式會重新載入頁面，讓 Access 重新
 
 若 `ACCESS_*` 變數缺少或為空，Worker 仍可部署，但管理 API 會對所有請求回傳 `AUTH_NOT_CONFIGURED`。
 
+## 📷 支援的圖片
 
-## API
+支援 JPEG、PNG、GIF、WebP 與 AVIF，預設上傳上限為 10 MiB
+
+伺服器會檢查實際檔案特徵，不只信任瀏覽器提供的 MIME type。由於 SVG 可能包含可執行腳本，因此不支援 SVG
+
+## 🔌 API
 
 | 方法 | 路徑 | 用途 |
 | --- | --- | --- |
@@ -188,8 +136,7 @@ Access session 過期時，應用程式會重新載入頁面，讓 Access 重新
 
 所有 `/api/*` 路徑都需要 `Cf-Access-Jwt-Assertion` header 中有效的 Cloudflare Access token，登入後由 Access 加上。`/health`、`/images/*` 與 `/profile-images/*` 不需要驗證。
 
-
-## Multiple Profiles
+## 👥 多個 Profile
 
 每個 profile 對應一個 Cloudflare R2 bucket。切換 profile 後，上傳、Gallery／List、搜尋與刪除都會依 bucket 分開
 
@@ -207,9 +154,9 @@ Access session 過期時，應用程式會重新載入頁面，讓 Access 重新
 | **Worker binding** | 是 | Worker 使用的唯一 JavaScript 變數名稱，建議使用大寫字母與底線。 | `ARCHIVE_IMAGES` |
 | **Public image URL** | 是 | **Bucket → Settings → Public access** 中已啟用的網址，不加結尾斜線。 | `https://archive-img.example.com` |
 
-預設 profile 保留 `"id": "default"`。兩個複製欄位都已包含尾逗號，可直接貼入對應陣列；`r2_buckets` 與 `IMAGE_PROFILES` 的 binding 名稱必須完全一致。
+`IMAGE_PROFILES` 是一般 JSON 陣列，不需要跳脫字串。預設 profile 保留 `"id": "default"`。兩個複製欄位都已包含尾逗號，可直接貼入對應陣列；`r2_buckets` 與 `IMAGE_PROFILES` 的 binding 名稱必須完全一致。
 
-## Commands
+## 🔧 指令
 
 | 指令 | 用途 |
 | --- | --- |
@@ -223,7 +170,7 @@ Access session 過期時，應用程式會重新載入頁面，讓 Access 重新
 | `pnpm smoke` | 檢查設定的正式環境 `/health` endpoint |
 | `pnpm deploy` | 部署 Worker 至 Cloudflare |
 
-## CI 與部署
+## 🔄 CI 與部署
 
 Pull request 與推送到 `main` 時，GitHub Actions 會使用專案宣告的 pnpm 版本、`.nvmrc` 的 Node 版本及 frozen lockfile 執行 `pnpm check`。只有 `main` 的檢查成功後，同一個 workflow 才會一起部署 Web assets 與 Gateway Worker。
 
@@ -255,15 +202,24 @@ Workflow 只會在暫時的 runner 建立 `wrangler.jsonc`；個人設定仍由 
 
 需要回復版本時，前往 **Cloudflare → Workers & Pages → 你的 Worker → Deployments**，找到上一個穩定版本，從選單選擇 **Rollback**。也可執行 `pnpm exec wrangler rollback <VERSION_ID> --config wrangler.jsonc --message "Rollback failed deployment"`。Worker rollback 不會回復 R2 物件或其他資源的變更。
 
-
-## Security and Privacy
+## 🔐 安全與隱私
 
 - 上傳圖片是公開的。隨機圖片 ID 可降低意外被發現的機率，但不是存取控制。
 - 使用只允許此 Worker 寫入的專用 R2 bucket。公開圖片回應會拒絕非圖片 Content-Type。
-- Access 會在 session 期間以 `CF_Authorization` cookie 保留登入狀態。在共用電腦上，請前往 Worker hostname 的 `/cdn-cgi/access/logout` 登出
+- Access 會在 session 期間以 `CF_Authorization` cookie 保留登入狀態。在共用電腦上，請前往 Worker hostname 的 `/cdn-cgi/access/logout` 登出。
 - 不要提交 `.dev.vars`、`.env`、`wrangler.jsonc` 或 `.wrangler/`。`.wrangler/` 可能包含本機 R2 物件與 metadata。
 - 請透過 Git 分享專案，不要直接壓縮整個工作目錄，避免包含已忽略的本機檔案。
-  
-## License
 
-MIT。請參考 [LICENSE](LICENSE)。
+## 🧱 技術架構
+
+| 技術 | 用途 |
+| --- | --- |
+| Cloudflare Workers | 提供網站與圖片 API |
+| Cloudflare R2 | 儲存上傳圖片 |
+| TypeScript | Worker 與 API 程式碼 |
+| React、TypeScript、Vite | 瀏覽器介面 |
+| Vitest | 自動化測試 |
+
+瀏覽器端執行依賴為 React 與 ReactDOM；圖片處理使用瀏覽器原生 API，不另外加入圖片 codec dependency
+
+pnpm workspace 只包含 `apps/web`、`apps/gateway` 與 `packages/contracts`。Gateway Worker 仍是唯一公開入口，一次部署 Web assets 與 API；Contracts 只保存兩個 app 共用的資料、限制與錯誤格式。
