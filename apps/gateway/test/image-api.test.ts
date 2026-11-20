@@ -1,6 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { handleRequest as handleWorkerRequest } from "../src";
 import type { Env } from "../src/types";
+import {
+  ACCESS_ENV,
+  createSigningIdentity,
+  serveAccessCerts,
+  signAccessJwt,
+  type SigningIdentity,
+} from "./access-token";
 
 interface StoredObject {
   body: Uint8Array;
@@ -10,14 +17,24 @@ interface StoredObject {
   uploaded: Date;
 }
 
-const ADMIN_TOKEN = "test-admin-token";
+let accessIdentity: SigningIdentity;
+let accessToken: string;
+
+beforeAll(async () => {
+  accessIdentity = await createSigningIdentity("image-api");
+  accessToken = await signAccessJwt(accessIdentity);
+});
+
+beforeEach(() => {
+  serveAccessCerts(accessIdentity);
+});
 
 function handleRequest(request: Request, env: Env): Promise<Response> {
   if (request.method === "OPTIONS" || !new URL(request.url).pathname.startsWith("/api/")) {
     return handleWorkerRequest(request, env);
   }
   const headers = new Headers(request.headers);
-  headers.set("Authorization", `Bearer ${ADMIN_TOKEN}`);
+  headers.set("Cf-Access-Jwt-Assertion", accessToken);
   return handleWorkerRequest(new Request(request, { headers }), env);
 }
 
@@ -115,7 +132,7 @@ class FakeR2Bucket {
 function createEnv(bucket = new FakeR2Bucket()): Env {
   return {
     IMAGES: bucket as unknown as R2Bucket,
-    ADMIN_TOKEN,
+    ...ACCESS_ENV,
     PUBLIC_BASE_URL: "https://img.example.com",
     CORS_ORIGINS: "https://writer.example.com",
     MAX_UPLOAD_BYTES: "1024",
@@ -166,7 +183,7 @@ describe("request observability", () => {
       new Request("https://api.example.com/api/images?tag=secret-tag", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${ADMIN_TOKEN}`,
+          "Cf-Access-Jwt-Assertion": accessToken,
           "CF-Ray": "test-request-id",
         },
         body: form,
@@ -184,7 +201,7 @@ describe("request observability", () => {
       error: "Error",
     });
     const logged = JSON.stringify(log.mock.calls);
-    for (const secret of [ADMIN_TOKEN, "private-photo.png", "secret-tag", "request-body"]) {
+    for (const secret of [accessToken, "private-photo.png", "secret-tag", "request-body"]) {
       expect(logged).not.toContain(secret);
     }
     log.mockRestore();
@@ -196,42 +213,6 @@ describe("image API", () => {
     const response = await handleRequest(new Request("https://api.example.com/health"), createEnv());
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ data: { status: "ok", service: "r2-image-api" } });
-  });
-
-  it("requires a valid admin key for API routes", async () => {
-    const response = await handleWorkerRequest(
-      new Request("https://api.example.com/api/images"),
-      createEnv(),
-    );
-    expect(response.status).toBe(401);
-    expect(response.headers.get("WWW-Authenticate")).toContain("Bearer");
-    expect(await response.json()).toMatchObject({ error: { code: "UNAUTHORIZED" } });
-
-    const invalid = await handleWorkerRequest(
-      new Request("https://api.example.com/api/images", {
-        headers: { Authorization: "Bearer wrong-key" },
-      }),
-      createEnv(),
-    );
-    expect(invalid.status).toBe(401);
-
-    const verified = await handleRequest(
-      new Request("https://api.example.com/api/auth/verify"),
-      createEnv(),
-    );
-    expect(verified.status).toBe(200);
-    expect(await verified.json()).toEqual({ data: { authenticated: true } });
-  });
-
-  it("fails closed when no admin key is configured", async () => {
-    const env = createEnv();
-    delete env.ADMIN_TOKEN;
-    const response = await handleWorkerRequest(
-      new Request("https://api.example.com/api/images"),
-      env,
-    );
-    expect(response.status).toBe(503);
-    expect(await response.json()).toMatchObject({ error: { code: "AUTH_NOT_CONFIGURED" } });
   });
 
   it("lists configured profiles without exposing bucket bindings", async () => {
@@ -278,7 +259,7 @@ describe("image API", () => {
       },
     );
     expect(JSON.stringify(errorLog.mock.calls)).not.toContain("private=secret");
-    expect(JSON.stringify(errorLog.mock.calls)).not.toContain(ADMIN_TOKEN);
+    expect(JSON.stringify(errorLog.mock.calls)).not.toContain(accessToken);
     errorLog.mockRestore();
   });
 
@@ -351,7 +332,7 @@ describe("image API", () => {
     );
     expect(allowed.status).toBe(204);
     expect(allowed.headers.get("Access-Control-Allow-Origin")).toBe("https://writer.example.com");
-    expect(allowed.headers.get("Access-Control-Allow-Headers")).toContain("Authorization");
+    expect(allowed.headers.get("Access-Control-Allow-Headers")).toBe("Content-Type");
 
     const denied = await handleRequest(
       new Request("https://api.example.com/api/images", {

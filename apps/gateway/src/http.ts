@@ -2,7 +2,7 @@ import type { CorsResult, Env } from "./types";
 import type { ApiErrorResponse } from "@image-hoisting/contracts";
 
 const CORS_METHODS = "GET, POST, PATCH, DELETE, OPTIONS";
-const CORS_HEADERS = "Authorization, Content-Type";
+const CORS_HEADERS = "Content-Type";
 
 export function getCors(request: Request, env: Env): CorsResult {
   const headers = new Headers({ Vary: "Origin" });

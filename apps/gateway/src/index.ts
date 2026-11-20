@@ -1,4 +1,4 @@
-import { requireAdmin } from "./auth";
+import { requireAccess } from "./auth";
 import { getCors, error, json } from "./http";
 import {
   deleteImage,
@@ -48,12 +48,8 @@ async function routeRequest(request: Request, env: Env, cors: CorsResult): Promi
   }
 
   if (url.pathname.startsWith("/api/")) {
-    const authFailure = await requireAdmin(request, env, cors.headers);
+    const authFailure = await requireAccess(request, env, cors.headers);
     if (authFailure) return authFailure;
-  }
-
-  if (url.pathname === "/api/auth/verify" && request.method === "GET") {
-    return json({ data: { authenticated: true } }, 200, cors.headers);
   }
 
   if (url.pathname === "/api/profiles" && request.method === "GET") {

@@ -1,8 +1,9 @@
 export interface Env {
   IMAGES: R2Bucket;
-  ADMIN_TOKEN?: string;
-  /** @deprecated Use ADMIN_TOKEN. Kept for existing deployments. */
-  AUTH_TOKEN?: string;
+  ACCESS_TEAM_DOMAIN?: string;
+  ACCESS_AUD?: string;
+  ACCESS_ALLOWED_EMAILS?: string;
+  ACCESS_DEV_EMAIL?: string;
   IMAGE_PROFILES?: string | unknown[];
   DEFAULT_PROFILE_LABEL?: string;
   PUBLIC_BASE_URL?: string;
