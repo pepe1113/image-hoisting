@@ -53,7 +53,7 @@ Drop or paste an image into the page, optimize it in the browser, upload it to C
 - **Auto rename:** Enter a display filename or generate a random eight-character name.
 - **Upload result:** Show the uploaded image, Markdown, and image URL after a successful upload.
 - **Profiles:** Switch between R2 buckets and use the in-app setup helper to prepare a new server-side profile without exposing bucket credentials to the browser.
-- **Permanent admin key:** Protect every management API with a deployer-owned Bearer token saved from the key icon.
+- **GitHub login:** Sign in once through Cloudflare Access and stay signed in for a month. The Worker verifies the Access token on every management API request.
 - **Themes:** Use the system theme or choose light/dark mode.
 - **Tags:** Add tags and search images by tag.
 - **Gallery and list:** Switch from the header between a full-width Masonry gallery with 30 px margins that loads more images as you scroll, or a centered list capped at 900 px for easier reading and management.
@@ -89,11 +89,10 @@ Node.js 22 or newer is required.
 ```bash
 pnpm install
 cp .dev.vars.example .dev.vars
-openssl rand -hex 32
 cp wrangler.jsonc.example wrangler.jsonc
 ```
 
-Replace `ADMIN_TOKEN` in `.dev.vars` with the generated value, then start the app:
+Replace `you@example.com` in `.dev.vars` with your email, then start the app:
 
 ```bash
 pnpm dev
@@ -108,26 +107,44 @@ Wrangler uses local R2 storage during development, so local uploads do not chang
 Local settings are stored in `.dev.vars`:
 
 ```dotenv
-ADMIN_TOKEN=replace-with-your-generated-value
+ACCESS_DEV_EMAIL=you@example.com
+ACCESS_TEAM_DOMAIN=
 CORS_ORIGINS=http://localhost:3000,https://www.example.com
 MAX_UPLOAD_BYTES=10485760
 ```
 
-- `ADMIN_TOKEN` protects the management API. It does not expire automatically.
+- `ACCESS_DEV_EMAIL` signs local requests in as this email, so you can run the app without Cloudflare Access. The Worker accepts it only for requests to `localhost`, `127.0.0.1`, or `[::1]`, and only while `ACCESS_TEAM_DOMAIN` is empty.
+- `ACCESS_TEAM_DOMAIN=` clears the production value from `wrangler.jsonc` for local runs. Without it, a configured `wrangler.jsonc` turns on Access mode, and the local API returns `503 AUTH_NOT_CONFIGURED`.
 - `CORS_ORIGINS` controls which browser origins can call the API.
 - `MAX_UPLOAD_BYTES` sets the upload size limit.
 
 Profile names, bindings, and public URLs are managed together in `vars.IMAGE_PROFILES` in `wrangler.jsonc`.
 
-On first visit, the app opens the admin-key popup automatically. Enter the same `ADMIN_TOKEN`. After verification, the key is stored in that browser's `localStorage` until you clear it from the key icon or clear the site's browser data.
+Production sign-in uses Cloudflare Access. See [Set up Cloudflare Access](#set-up-cloudflare-access).
 
-For production, store it as an encrypted Worker secret rather than a Wrangler variable:
+## Set up Cloudflare Access
 
-```bash
-npx wrangler secret put ADMIN_TOKEN
-```
+Cloudflare Access puts a GitHub login in front of the Worker. After you sign in once, the browser keeps the Access session for a month. The Worker also verifies the Access token on every `/api/*` request, so a hostname that Access does not protect still cannot reach the management API.
 
-Existing deployments using the former `AUTH_TOKEN` secret remain compatible, but new deployments should use `ADMIN_TOKEN`.
+1. Create a GitHub OAuth app. In GitHub, go to **Settings** > **Developer settings** > **OAuth Apps** and select **New OAuth App**. Set **Homepage URL** to `https://<your-team-name>.cloudflareaccess.com` and **Authorization callback URL** to `https://<your-team-name>.cloudflareaccess.com/cdn-cgi/access/callback`. Copy the **Client ID**, then generate and copy a **Client secret**.
+2. Add GitHub as an identity provider. In the Cloudflare dashboard, go to **Zero Trust** > **Integrations** > **Identity providers**, select **Add new identity provider**, and select **GitHub**. Paste the client ID into **App ID** and the secret into **Client secret**. Select **Save**, then **Finish setup**.
+3. Protect the whole Worker. In **Workers & Pages**, select your Worker, go to **Settings** > **Domains & Routes**, and select **Enable Cloudflare Access** for `workers.dev`. If the Worker also has a custom domain, protect that hostname with a self-hosted application in **Zero Trust** > **Access controls** > **Applications**. In the application, keep one Allow policy that includes only your email, and set **Session Duration** to 1 month.
+4. Keep the public routes public. In **Zero Trust** > **Access controls** > **Applications**, create a second self-hosted application for the same hostname with the paths `images`, `profile-images`, and `health`. Give it a policy with the **Bypass** action that includes **Everyone**. Without this application, image links that point at the Worker ask for a login, and the CI health check after each deployment fails.
+5. Copy the settings into `vars` in `wrangler.jsonc`. The team domain is under **Zero Trust** > **Settings** > **Team name and domain**. The AUD tag is the **Application Audience (AUD) Tag** under **Additional settings** of the application from step 3.
+
+   ```jsonc
+   "ACCESS_TEAM_DOMAIN": "your-team-name.cloudflareaccess.com",
+   "ACCESS_AUD": "your-application-aud-tag",
+   "ACCESS_ALLOWED_EMAILS": "you@example.com"
+   ```
+
+   `ACCESS_ALLOWED_EMAILS` is a comma-separated list, and the Worker compares emails without regard to case. If CI deploys the Worker, also update the `CLOUDFLARE_WRANGLER_CONFIG` secret.
+
+The Worker fails closed. If `ACCESS_TEAM_DOMAIN` is set but `ACCESS_AUD` is empty, `ACCESS_ALLOWED_EMAILS` lists no email, or `ACCESS_DEV_EMAIL` is also set, every `/api/*` request returns `503 AUTH_NOT_CONFIGURED`. A token with a bad signature, an unknown key, the wrong issuer or audience, a past expiry, or an email outside the list returns `401 UNAUTHORIZED`, and the message names the check that failed.
+
+When the Access session expires, the app reloads the page so Access can sign you in again. If an upload is running, the app shows a notice instead and leaves the upload alone.
+
+To move an existing deployment to Access, set up Access first and deploy this version. Then delete the old Bearer token secret in your Worker under **Settings** > **Variables and Secrets**. This version no longer reads it.
 
 ## Profiles
 
@@ -154,7 +171,6 @@ Each profile maps to one Cloudflare R2 bucket. Switching profiles keeps uploads,
 | Method | Route | What it does |
 | --- | --- | --- |
 | `GET` | `/health` | Checks whether the Worker is running |
-| `GET` | `/api/auth/verify` | Verifies the saved admin key |
 | `GET` | `/api/profiles` | Lists safe profile IDs and labels |
 | `GET` | `/images/:key` | Returns an image |
 | `GET` | `/profile-images/:profile/:key` | Returns an image from an additional profile |
@@ -165,13 +181,13 @@ Each profile maps to one Cloudflare R2 bucket. Switching profiles keeps uploads,
 
 The `profile` query is optional. Omitting it uses the existing default profile.
 
-Every `/api/*` route requires `Authorization: Bearer <ADMIN_TOKEN>`. Public image routes under `/images/*` and `/profile-images/*` do not require authentication.
+Every `/api/*` route requires a valid Cloudflare Access token in the `Cf-Access-Jwt-Assertion` header. Access adds the header after you sign in. `/health`, `/images/*`, and `/profile-images/*` do not require authentication.
 
 ## Security and Privacy
 
 - Uploaded images are public. Random image IDs make accidental discovery less likely, but they are not access control.
 - Use dedicated R2 buckets that are written only by this Worker. Public image responses reject non-image content types.
-- The admin key is stored in the current browser's `localStorage` until you clear it. Use a trusted browser profile and rotate the Worker secret if the key may be exposed.
+- Access keeps your login in a `CF_Authorization` cookie for the session duration. On a shared computer, sign out at `/cdn-cgi/access/logout` on the Worker's hostname.
 - Never commit `.dev.vars`, `.env`, `wrangler.jsonc`, or `.wrangler/`. The last directory can contain local R2 objects and metadata.
 - Share the project through Git rather than archiving the entire working directory, which may include ignored local files.
 
@@ -217,7 +233,7 @@ Also configure these plain environment variables:
 
 After deployment, the workflow requests `/health` with a 10-second timeout and verifies the HTTP status, service name, and health status. A failed check leaves the deployment output in the same Actions run for diagnosis.
 
-Production Web builds use the Git commit SHA as the Sentry release. Source maps are uploaded during the protected production build and deleted before the browser assets are deployed. The browser client captures only React render crashes; it does not record breadcrumbs, request data, user data, local storage, filenames, tags, or admin keys.
+Production Web builds use the Git commit SHA as the Sentry release. Source maps are uploaded during the protected production build and deleted before the browser assets are deployed. The browser client captures only React render crashes; it does not record breadcrumbs, request data, user data, local storage, filenames, tags, or Access tokens.
 
 To roll back, open **Cloudflare → Workers & Pages → your Worker → Deployments**, find the last stable version, open its menu, and select **Rollback**. You can also run `pnpm exec wrangler rollback <VERSION_ID> --config wrangler.jsonc --message "Rollback failed deployment"`. A Worker rollback does not undo changes to R2 objects or other resources.
 
@@ -246,12 +262,7 @@ To roll back, open **Cloudflare → Workers & Pages → your Worker → Deployme
 
 3. Connect an R2 Custom Domain and save it as the profile's `publicBaseUrl`. Use `r2.dev` only for local or temporary testing; it is rate-limited and does not provide production cache controls. Image responses are stored at the edge but revalidated before reuse, so deleting an object does not leave a fresh long-lived copy behind.
 
-4. For the first deployment, create a unique production admin key and store it as a Worker secret:
-
-   ```bash
-   openssl rand -hex 32
-   pnpm exec wrangler secret put ADMIN_TOKEN
-   ```
+4. Set up Cloudflare Access and fill in the `ACCESS_*` variables. See [Set up Cloudflare Access](#set-up-cloudflare-access).
 
 5. Deploy:
 
@@ -259,7 +270,7 @@ To roll back, open **Cloudflare → Workers & Pages → your Worker → Deployme
    pnpm deploy
    ```
 
-Wrangler only enforces a secret during deployment when it is listed under `secrets.required`. This template leaves that optional validation unset so existing deployments using the former `AUTH_TOKEN` remain compatible. For a new deployment, configure `ADMIN_TOKEN` once; Cloudflare keeps secrets across later `wrangler deploy` operations, so you only need to enter it again when rotating or recreating the secret. If neither token exists, the Worker still deploys but its management API rejects requests with `AUTH_NOT_CONFIGURED`. See Cloudflare's [Secrets documentation](https://developers.cloudflare.com/workers/configuration/secrets/).
+If the `ACCESS_*` variables are missing or empty, the Worker still deploys, but its management API rejects every request with `AUTH_NOT_CONFIGURED`.
 
 
 

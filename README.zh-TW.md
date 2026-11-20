@@ -47,7 +47,7 @@
 - **自動命名：** 輸入顯示檔名，或產生八字元隨機名稱
 - **上傳結果：** 上傳成功後顯示圖片、Markdown 與圖片網址
 - **Profiles：** 切換不同 R2 bucket，並透過介面產生新的伺服器端 profile 設定
-- **固定管理金鑰：** 使用部署者管理的 Bearer token 保護所有管理 API
+- **GitHub 登入：** 透過 Cloudflare Access 登入一次，一個月內維持登入；Worker 會在每個管理 API 請求驗證 Access token
 - **主題：** 跟隨系統，或選擇亮色／深色模式
 - **標籤：** 新增標籤，並依標籤搜尋圖片
 - **Gallery 與 List：** 從 Header 切換左右保留 30 px 的滿版 Masonry Gallery，往下捲動時載入更多圖片；或使用置中、最大寬度 900 px 的 List，方便閱讀與操作
@@ -83,11 +83,10 @@ pnpm workspace 只包含 `apps/web`、`apps/gateway` 與 `packages/contracts`。
 ```bash
 pnpm install
 cp .dev.vars.example .dev.vars
-openssl rand -hex 32
 cp wrangler.jsonc.example wrangler.jsonc
 ```
 
-將產生的值填入 `.dev.vars` 的 `ADMIN_TOKEN`，再啟動專案：
+將 `.dev.vars` 中的 `you@example.com` 改成你的 email，再啟動專案：
 
 ```bash
 pnpm dev
@@ -102,20 +101,41 @@ pnpm dev
 本機設定放在 `.dev.vars`：
 
 ```dotenv
-ADMIN_TOKEN=replace-with-your-generated-value  # API Bearer token
+ACCESS_DEV_EMAIL=you@example.com  # 本機登入身分
+ACCESS_TEAM_DOMAIN=  # 本機清除 wrangler.jsonc 的正式環境值
 CORS_ORIGINS=http://localhost:3000,https://www.example.com  # 限制可呼叫來源
 MAX_UPLOAD_BYTES=10485760  # 上傳大小上限
 ```
 
 Profile 名稱、binding 與公開網址統一在 `wrangler.jsonc` 的 `vars.IMAGE_PROFILES` 中管理。
 
-第一次開啟網站時，系統會自動顯示管理金鑰視窗。輸入相同的 `ADMIN_TOKEN`，驗證後會儲存在該瀏覽器的 `localStorage`，直到你從金鑰圖示清除，或清除網站資料。
+`ACCESS_DEV_EMAIL` 讓本機請求以該 email 登入，不需 Cloudflare Access 即可執行。Worker 只在請求送往 `localhost`、`127.0.0.1` 或 `[::1]`，且 `ACCESS_TEAM_DOMAIN` 為空時接受它。`.dev.vars` 中的 `ACCESS_TEAM_DOMAIN=` 會在本機清除 `wrangler.jsonc` 的正式環境值；少了這行，已設定的 `wrangler.jsonc` 會啟用 Access 模式，本機 API 會回傳 `503 AUTH_NOT_CONFIGURED`。
 
-正式環境請將金鑰存為加密的 Worker secret，不要放在 Wrangler 變數中：
+正式環境透過 Cloudflare Access 登入，請參考 [設定 Cloudflare Access](#設定-cloudflare-access)。
 
-```bash
-npx wrangler secret put ADMIN_TOKEN
-```
+### 設定 Cloudflare Access
+
+Cloudflare Access 會在 Worker 前加上 GitHub 登入。登入一次後，瀏覽器會保留 Access session 一個月。Worker 也會在每個 `/api/*` 請求驗證 Access token，所以即使某個 hostname 沒有受 Access 保護，也無法呼叫管理 API。
+
+1. 建立 GitHub OAuth app。在 GitHub 前往 **Settings** > **Developer settings** > **OAuth Apps**，選擇 **New OAuth App**。**Homepage URL** 填 `https://<your-team-name>.cloudflareaccess.com`，**Authorization callback URL** 填 `https://<your-team-name>.cloudflareaccess.com/cdn-cgi/access/callback`。複製 **Client ID**，再產生並複製 **Client secret**。
+2. 將 GitHub 加為 identity provider。在 Cloudflare dashboard 前往 **Zero Trust** > **Integrations** > **Identity providers**，選擇 **Add new identity provider**，再選 **GitHub**。將 client ID 貼到 **App ID**，secret 貼到 **Client secret**。選擇 **Save**，再選 **Finish setup**。
+3. 保護整個 Worker。在 **Workers & Pages** 選擇你的 Worker，前往 **Settings** > **Domains & Routes**，為 `workers.dev` 選擇 **Enable Cloudflare Access**。若 Worker 也有自訂網域，請在 **Zero Trust** > **Access controls** > **Applications** 為該 hostname 建立 self-hosted application。Application 只保留一條 Allow policy，且只包含你的 email，並將 **Session Duration** 設為 1 month。
+4. 讓公開路徑維持公開。在 **Zero Trust** > **Access controls** > **Applications** 為同一個 hostname 建立第二個 self-hosted application，路徑填 `images`、`profile-images` 與 `health`。為它加上 action 為 **Bypass**、包含 **Everyone** 的 policy。少了這個 application，指向 Worker 的圖片連結會要求登入，每次部署後的 CI 健康檢查也會失敗。
+5. 將設定複製到 `wrangler.jsonc` 的 `vars`。Team domain 位於 **Zero Trust** > **Settings** > **Team name and domain**。AUD tag 是步驟 3 application 的 **Additional settings** 中的 **Application Audience (AUD) Tag**。
+
+   ```jsonc
+   "ACCESS_TEAM_DOMAIN": "your-team-name.cloudflareaccess.com",
+   "ACCESS_AUD": "your-application-aud-tag",
+   "ACCESS_ALLOWED_EMAILS": "you@example.com"
+   ```
+
+   `ACCESS_ALLOWED_EMAILS` 以逗號分隔，Worker 比對 email 時不分大小寫。若由 CI 部署，也要更新 `CLOUDFLARE_WRANGLER_CONFIG` secret。
+
+Worker 採 fail closed。若設定了 `ACCESS_TEAM_DOMAIN`，但 `ACCESS_AUD` 為空、`ACCESS_ALLOWED_EMAILS` 沒有任何 email，或同時設定了 `ACCESS_DEV_EMAIL`，所有 `/api/*` 請求都會回傳 `503 AUTH_NOT_CONFIGURED`。簽章錯誤、未知的 key、issuer 或 audience 不符、已過期，或 email 不在清單中的 token 會回傳 `401 UNAUTHORIZED`，訊息會指出失敗的檢查項目。
+
+Access session 過期時，應用程式會重新載入頁面，讓 Access 重新登入。若正在上傳，應用程式改為顯示提示，不會中斷上傳。
+
+既有部署要改用 Access 時，請先完成 Access 設定並部署此版本，再到 Worker 的 **Settings** > **Variables and Secrets** 刪除舊的 Bearer token secret。此版本已不再讀取它。
 
 ### Deploy
 
@@ -142,12 +162,7 @@ npx wrangler secret put ADMIN_TOKEN
 
 3. 為 bucket 連接 R2 自訂網域，再將網址填入 profile 的 `publicBaseUrl`。`r2.dev` 僅用於本機或短期測試，具有流量限制，也不提供正式環境的快取控制。圖片可保存於 edge，但每次重用前會重新驗證，因此刪除物件後不會留下仍在 fresh 狀態的長效副本。
 
-4. 第一次部署時，產生正式環境的管理金鑰並存為 Worker secret：
-
-   ```bash
-   openssl rand -hex 32
-   pnpm exec wrangler secret put ADMIN_TOKEN
-   ```
+4. 完成 Cloudflare Access 設定並填入 `ACCESS_*` 變數，請參考 [設定 Cloudflare Access](#設定-cloudflare-access)。
 
 5. 部署：
 
@@ -155,7 +170,7 @@ npx wrangler secret put ADMIN_TOKEN
    pnpm deploy
    ```
 
-只有在 `secrets.required` 中宣告 secret 時，Wrangler 才會在部署時強制檢查。此範例未啟用該選用驗證，以相容仍使用舊 `AUTH_TOKEN` 的部署。新部署只需設定一次 `ADMIN_TOKEN`；Cloudflare 會在後續 `wrangler deploy` 時保留 secret，只有更換或重新建立時需要再次輸入。若兩種 token 都沒有設定，Worker 仍可部署，但管理 API 會回傳 `AUTH_NOT_CONFIGURED`。詳情請參考 Cloudflare 的 [Secrets 文件](https://developers.cloudflare.com/workers/configuration/secrets/)。
+若 `ACCESS_*` 變數缺少或為空，Worker 仍可部署，但管理 API 會對所有請求回傳 `AUTH_NOT_CONFIGURED`。
 
 
 ## API
@@ -163,7 +178,6 @@ npx wrangler secret put ADMIN_TOKEN
 | 方法 | 路徑 | 用途 |
 | --- | --- | --- |
 | `GET` | `/health` | 檢查 Worker 是否正常運作 |
-| `GET` | `/api/auth/verify` | 驗證已儲存的管理金鑰 |
 | `GET` | `/api/profiles` | 列出安全的 profile ID 與名稱 |
 | `GET` | `/images/:key` | 取得圖片 |
 | `GET` | `/profile-images/:profile/:key` | 從其他 profile 取得圖片 |
@@ -174,7 +188,7 @@ npx wrangler secret put ADMIN_TOKEN
 
 `profile` query 可省略；省略時使用預設 profile。
 
-所有 `/api/*` 路徑都需要 `Authorization: Bearer <ADMIN_TOKEN>`。`/images/*` 與 `/profile-images/*` 公開圖片路徑不需要驗證。
+所有 `/api/*` 路徑都需要 `Cf-Access-Jwt-Assertion` header 中有效的 Cloudflare Access token，登入後由 Access 加上。`/health`、`/images/*` 與 `/profile-images/*` 不需要驗證。
 
 
 ## Multiple Profiles
@@ -239,7 +253,7 @@ Workflow 只會在暫時的 runner 建立 `wrangler.jsonc`；個人設定仍由 
 
 部署後，workflow 會在 10 秒 timeout 內請求 `/health`，驗證 HTTP 狀態、service 名稱與健康狀態；若檢查失敗，同一次 Actions 執行仍會保留部署輸出供查找。
 
-正式 Web build 使用 Git commit SHA 作為 Sentry release；source map 會在受保護的 production build 上傳，並於部署 browser assets 前刪除。Browser client 只捕捉 React render crash，不記錄 breadcrumbs、request 資料、使用者資料、local storage、檔名、tags 或管理金鑰。
+正式 Web build 使用 Git commit SHA 作為 Sentry release；source map 會在受保護的 production build 上傳，並於部署 browser assets 前刪除。Browser client 只捕捉 React render crash，不記錄 breadcrumbs、request 資料、使用者資料、local storage、檔名、tags 或 Access token。
 
 需要回復版本時，前往 **Cloudflare → Workers & Pages → 你的 Worker → Deployments**，找到上一個穩定版本，從選單選擇 **Rollback**。也可執行 `pnpm exec wrangler rollback <VERSION_ID> --config wrangler.jsonc --message "Rollback failed deployment"`。Worker rollback 不會回復 R2 物件或其他資源的變更。
 
@@ -248,7 +262,7 @@ Workflow 只會在暫時的 runner 建立 `wrangler.jsonc`；個人設定仍由 
 
 - 上傳圖片是公開的。隨機圖片 ID 可降低意外被發現的機率，但不是存取控制。
 - 使用只允許此 Worker 寫入的專用 R2 bucket。公開圖片回應會拒絕非圖片 Content-Type。
-- 管理金鑰會儲存在目前瀏覽器的 `localStorage`。請使用可信任的瀏覽器 profile；若可能外洩，請更換 Worker secret。
+- Access 會在 session 期間以 `CF_Authorization` cookie 保留登入狀態。在共用電腦上，請前往 Worker hostname 的 `/cdn-cgi/access/logout` 登出
 - 不要提交 `.dev.vars`、`.env`、`wrangler.jsonc` 或 `.wrangler/`。`.wrangler/` 可能包含本機 R2 物件與 metadata。
 - 請透過 Git 分享專案，不要直接壓縮整個工作目錄，避免包含已忽略的本機檔案。
   
